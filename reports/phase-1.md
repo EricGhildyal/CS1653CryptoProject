@@ -38,3 +38,14 @@ Account Removal states that accounts can be removed by a system Admin or the own
 	Data Persistence states that upon leaving a group, the user has the option of removing the files or making them property of another group member. This allows one user to leave a group without unintentionally removing access to files from other members. This assumes that user accounts are not compromised.  
 **Property 9: File Location**   
 	File Location states that every time a file is uploaded or shared to a group, a copy is made specifically for that group. This prevents issues in which one file shared across multiple groups can be edited for one group, by members of another group. This property does not make any assumptions.
+
+  # Section 2
+## Classroom setting
+  This file sharing system will be deployed locally within a university where each user has a university provided account. There are three roles: Admin, Professor, and Student. Admins add users to the system and assign roles. Each professor has a collection of groups within their class, and can assign any user on the system to any of these groups. To access a group, a user must be assigned to it by the professor who owns the group. Only members of the group or the group owner can view, edit, upload, or delete files.  
+  This system gives admins the trust to operate the system without exploiting any of the users or their data. It trusts the professors to manage their groups and not exploit any of the files within any group in their control. Finally, it trusts students to respect their group members and to not maliciously remove or edit other students’ files.
+- System Access states that only those with accounts created by an Admin can access the system. After creation of an account, an Admin provides each user with their credentials which they can use to access the system.
+- Role Management states that each user has a role and these roles are assigned by an Admin at the time of account creation. Possible roles are: Admin, Professor, and Student. Roles are defined as the permissions each user has where admin supersedes professor and professor supersedes student.
+- Hierarchical Access states that the Admins have access to everything the Professors do and the Professors have access to everything that their Students do. This means that a professor holds as many permissions over a file as group members who possess the file as long as the file is contained within a group he owns.
+- Group Access states that anyone placed in a group by a professor has access to read, write, edit, and delete the files contained within that group.
+- Ownership Transfer states that if a user leaves the system or group, ownership of their groups or files are delegated to the account directly above them.
+- Administrator Delegation states that admins cannot leave the system without first delegating another admin to take possession of any owned files or groups.
