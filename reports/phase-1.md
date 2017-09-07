@@ -49,3 +49,20 @@ Account Removal states that accounts can be removed by a system Admin or the own
 - Group Access states that anyone placed in a group by a professor has access to read, write, edit, and delete the files contained within that group.
 - Ownership Transfer states that if a user leaves the system or group, ownership of their groups or files are delegated to the account directly above them.
 - Administrator Delegation states that admins cannot leave the system without first delegating another admin to take possession of any owned files or groups.
+
+## Public website
+	This system is hosted publically on a server. Anyone can connect to and create an account on this server. Any user can then create a group of which they become a member. Access to this group is then determined by its members, who can add other members or by majority vote remove others from the group. Within this group, only members can view its files, only the files’ uploader can delete it, and either the owner or an owner delegated group member can delete, overwrite, or edit a file.
+	This places minimal trust in the hands of basic users by only allowing them to manage their own files and files that they have been delegated permissions over. It places more trust in the collective user base of the system assuming that the majority of users do not want to attack the system and want to keep it functional. It also trusts administrators to police the system fairly in removing malicious users.
+
+- The ownership of an account is required for all users to access the system, to either read from or write to files, or participate in a group.
+- Open access states that anybody who can verify their existence with an email account can create an account on our system, and thus access account holding benefits.
+- Individual Access states that access to files is restricted to the members of the group and excludes system admins.
+- Group Roles states that within each group there will be two kinds of members: members with read/write permissions and users with only read permissions.
+- Secure User Directory states that there is a directory that allows account holding users to be searchable by other users.
+- Removal by Threshold states that removing someone from a group will be done by a majority vote by the group.
+- Account Removal states that accounts can be removed by a system admin or the owner of that account.
+- Data Persistence states that upon leaving a group, the user has the option of removing the files or making them property of another group member.
+- File Location states that every time a file is uploaded or shared to a group, a copy is made specifically for that group.
+
+# Section 3
+	References: AFS Filesystem, Github, GroupMe, and Google Drive
