@@ -63,6 +63,7 @@ Properties:
 This system is hosted publically on a server. Anyone can connect to and create an account on this server. Any user can then create a group of which they become a member. Access to this group is then determined by its members, who can add other members or by majority vote remove others from the group. Within this group, only members can view its files, only the files’ uploader can delete it, and either the owner or an owner delegated group member can delete, overwrite, or edit a file.
 This places minimal trust in the hands of basic users by only allowing them to manage their own files and files that they have been delegated permissions over. It places more trust in the collective user base of the system assuming that the majority of users do not want to attack the system and want to keep it functional. It also trusts administrators to police the system fairly in removing malicious users.
 
+
 Properties:
 - Public Account Access - This ensures only users that have created an account can access the system. 
 - Permissions - This makes sure only users that should be changing/viewing a file can do so.
@@ -77,6 +78,7 @@ Properties:
 - Active Re-encryption - This ensures that if a user decides to remove access to one of their files from another user, that the files are immediately secured.
 - Key Authority - This ensures that all the private keys used to access files are in sync and that we have direct control over key distribution, without allowing a 3rd party access to these keys.
 - Session Timeout - This ensures that users accounts are safer in the case that someone leaves their account logged in on a public device.
+
 
 
 
