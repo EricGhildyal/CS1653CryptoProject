@@ -11,11 +11,23 @@ public abstract class Client {
 	protected ObjectOutputStream output;
 	protected ObjectInputStream input;
 
+
+	/**
+	 * Connects to server from param server on port param port
+	 *
+	 * @param server server hostname/issuer of token
+	 * @param port port that server is connected to
+	 * @return Whether or not the connection was sucessful or not
+	 */
 	public boolean connect(final String server, final int port) {
 		System.out.println("attempting to connect");
-
-		/* TODO: Write this method */
-
+		try{
+			this.sock = new Socket(server, port);
+		}catch(Exception e){
+			System.out.println("There was an error in connecting to the server: " + e);
+			return false;
+		}
+		return true;
 	}
 
 	public boolean isConnected() {
