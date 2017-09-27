@@ -134,19 +134,99 @@ public class GroupThread extends Thread
 				}
 				else if(message.getMessage().equals("DGROUP")) //Client wants to delete a group
 				{
-				    /* TODO:  Write this handler */
+					if(message.getObjContents().size() < 2) //check for valid number of args
+					{
+						response = new Envelope("FAIL");
+					}
+					else
+					{
+						response = new Envelope("FAIL");
+
+						if(message.getObjContents().get(0) != null) //get username
+						{
+							if(message.getObjContents().get(1) != null) //get token
+							{
+								String username = (String)message.getObjContents().get(0); //Extract the username
+								UserToken yourToken = (UserToken)message.getObjContents().get(1); //Extract the token
+
+								if(deleteGroup(username, yourToken)){
+									response = new Envelope("OK");
+								}
+							}
+						}
+					}
 				}
 				else if(message.getMessage().equals("LMEMBERS")) //Client wants a list of members in a group
 				{
-				    /* TODO:  Write this handler */
+					if(message.getObjContents().size() < 2) //check for valid number of args
+					{
+						response = new Envelope("FAIL");
+					}
+					else
+					{
+						response = new Envelope("FAIL");
+
+						if(message.getObjContents().get(0) != null) //get username
+						{
+							if(message.getObjContents().get(1) != null) //get token
+							{
+								String username = (String)message.getObjContents().get(0); //Extract the username
+								UserToken yourToken = (UserToken)message.getObjContents().get(1); //Extract the token
+
+								if(listMembers(username, yourToken)){
+									response = new Envelope("OK");
+								}
+							}
+						}
+					}
 				}
 				else if(message.getMessage().equals("AUSERTOGROUP")) //Client wants to add user to a group
 				{
-				    /* TODO:  Write this handler */
+					if(message.getObjContents().size() < 2) //check for valid number of args
+					{
+						response = new Envelope("FAIL");
+					}
+					else
+					{
+						response = new Envelope("FAIL");
+
+						if(message.getObjContents().get(0) != null) //get username
+						{
+							if(message.getObjContents().get(1) != null) //get token
+							{
+								String username = (String)message.getObjContents().get(0); //Extract the username
+								UserToken yourToken = (UserToken)message.getObjContents().get(1); //Extract the token
+
+								if(addUserToGroup(username, yourToken)){
+									response = new Envelope("OK");
+								}
+							}
+						}
+					}
 				}
 				else if(message.getMessage().equals("RUSERFROMGROUP")) //Client wants to remove user from a group
 				{
-				    /* TODO:  Write this handler */
+					if(message.getObjContents().size() < 2) //check for valid number of args
+					{
+						response = new Envelope("FAIL");
+					}
+					else
+					{
+						response = new Envelope("FAIL");
+
+						if(message.getObjContents().get(0) != null) //get username
+						{
+							if(message.getObjContents().get(1) != null) //get token
+							{
+								String username = (String)message.getObjContents().get(0); //Extract the username
+								UserToken yourToken = (UserToken)message.getObjContents().get(1); //Extract the token
+
+								if(removeUserFromGroup(username, yourToken)){
+									response = new Envelope("OK");
+								}
+							}
+						}
+					}
 				}
 				else if(message.getMessage().equals("DISCONNECT")) //Client wants to disconnect
 				{
@@ -166,15 +246,30 @@ public class GroupThread extends Thread
 			e.printStackTrace(System.err);
 		}
 	}
+	
+	private boolean removeUserFromGroup(String username, UserToken token){
+		//no clue what to do here.... -Eric
+		return true;
+	}
+	
+	private boolean addUserToGroup(String username, UserToken token){
+		
+		return true;
+	}
 
+	private boolean listMembers(String username, UserToken token){
+		//no clue what to do here.... -Eric
+		return true;
+	}
+	
 	private boolean createGroup(String username, UserToken token){
 		//no clue what to do here.... -Eric
-		return false;
+		return true;
 	}
 
 	private boolean deleteGroup(String username, UserToken token){
 		//no clue what to do here.... -Eric
-		return false;
+		return true;
 	}
 
 	//Method to create tokens
