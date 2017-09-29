@@ -19,7 +19,8 @@ public class GroupServer extends Server {
 
 	public static final int SERVER_PORT = 8765;
 	public UserList userList;
-    
+    public ArrayList<Group> groupList = new ArrayList<>();
+	
 	public GroupServer() {
 		super(SERVER_PORT, "ALPHA");
 	}
@@ -99,7 +100,6 @@ public class GroupServer extends Server {
 		}
 
 	}
-	
 }
 
 //This thread saves the user list
@@ -161,5 +161,18 @@ class AutoSave extends Thread
 				System.out.println("Autosave Interrupted");
 			}
 		}while(true);
+	}
+}
+
+
+class Group{
+	public ArrayList<String> memberList;
+	public String name;
+	public Object owner; //TODO figure out how to represent owner
+	
+	public Group(ArrayList<String> memberList, String name, String owner) {
+		this.memberList = memberList;
+		this.name = name;
+		this.owner = owner;
 	}
 }
