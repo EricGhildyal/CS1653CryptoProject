@@ -1,8 +1,9 @@
 import java.util.List;
 import java.util.ArrayList;
 
-public class Token implements UserToken{
-
+public class Token implements UserToken, java.io.Serializable{
+	 
+  private static final long serialVersionUID = 2752981720946956959L;
   private String server, username;
   private ArrayList<String> groups;
 

@@ -7,6 +7,7 @@ public abstract class Client {
 	/* protected keyword is like private but subclasses have access
 	 * Socket and input/output streams
 	 */
+	public UserToken tok;
 	protected Socket sock;
 	protected ObjectOutputStream output;
 	protected ObjectInputStream input;
@@ -21,8 +22,10 @@ public abstract class Client {
 	 */
 	public boolean connect(final String server, final int port) {
 		System.out.println("attempting to connect");
-		try{
+		try {	
 			this.sock = new Socket(server, port);
+			output = new ObjectOutputStream(this.sock.getOutputStream());  //Declare the output and input streams
+			input = new ObjectInputStream(this.sock.getInputStream());
 		}catch(Exception e){
 			System.out.println("There was an error in connecting to the server: " + e);
 			return false;

@@ -2,11 +2,13 @@
 
 import java.util.ArrayList;
 import java.util.List;
+import java.io.IOException;
 import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 
 public class GroupClient extends Client implements GroupClientInterface {
- 
-	 public UserToken getToken(String username)
+	
+	public UserToken getToken(String username)
 	 {
 		try
 		{
@@ -20,7 +22,7 @@ public class GroupClient extends Client implements GroupClientInterface {
 		
 			//Get the response from the server
 			response = (Envelope)input.readObject();
-			
+
 			//Successful response
 			if(response.getMessage().equals("OK"))
 			{
