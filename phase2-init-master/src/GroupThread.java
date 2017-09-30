@@ -253,13 +253,13 @@ public class GroupThread extends Thread
 		}
 	}
 	
-	//TODO comment all these methods
+	//Removes a user from the group on the server 
 	private boolean removeUserFromGroup(String username, String groupName, UserToken token){
 		for (Group g : my_gs.groupList) {
-			if(g.name.equals(groupName)) {
+			if(g.name.equals(groupName)) {				//Finds the group by name
 				for (String u : g.memberList) {
-					if(u.equals(username)) {
-						g.memberList.remove(u);
+					if(u.equals(username)) {			//Finds the user in that group
+						g.memberList.remove(u);			//Removes the user
 						return true;
 					}
 					
@@ -271,17 +271,17 @@ public class GroupThread extends Thread
 		System.err.printf("Error: Group %s not found!\n", groupName);
 		return false;
 	}
-	
+	//Adds a user to a group on the server
 	private boolean addUserToGroup(String username, String groupName, UserToken token){
 		for (Group g : my_gs.groupList) {
-			if(g.name.equals(groupName)) {
+			if(g.name.equals(groupName)) {				//Finds a group by name
 				for (String u : g.memberList) {
-					if(u.equals(username)) {
+					if(u.equals(username)) {			//Checks if user is already in the group
 						System.err.printf("Error: User %s is already in group %s!\n", username, groupName);
 						return false;
 					}
 				}
-				g.memberList.add(username);
+				g.memberList.add(username);				//If the user is not in the group, it adds them
 				return true;
 			}
 		}
@@ -289,31 +289,34 @@ public class GroupThread extends Thread
 		return false;
 	}
 
+	//Returns all the members in a group
 	private ArrayList<String> listMembers(String groupName, UserToken token){
 		for (Group g : my_gs.groupList) {
-			if(g.name.equals(groupName)) {
-				return g.memberList;
+			if(g.name.equals(groupName)) {				//Finds the group by name
+				return g.memberList;					//Returns the list of members in that group
 			}
 		}
 		System.err.printf("Error: Group %s not found!\n", groupName);
-		return null;
+		return null;									//Returns null if the group is not found
 	}
 	
+	//Creates a group on the server
 	private boolean createGroup(String groupName, UserToken token){
 		for (Group g : my_gs.groupList) {
-			if(g.name.equals(groupName)) {
+			if(g.name.equals(groupName)) {				//Checks if the group already exists
 				System.err.printf("Error: Group %s already exists!\n", groupName);
 				return false;
 			}
-		}
-		my_gs.groupList.add(new Group(new ArrayList<String>(), groupName, token.getSubject())); //TODO should we add the token holder to the group?
+		}												//If not, it creates it and returns true
+		my_gs.groupList.add(new Group(new ArrayList<String>(), groupName, token.getSubject()));
 		return true;
 	}
 
+	//Deletes a group from the server
 	private boolean deleteGroup(String groupName,UserToken token){
 		for (Group g : my_gs.groupList) {
-			if(g.name.equals(groupName)) {
-				my_gs.groupList.remove(g);
+			if(g.name.equals(groupName)) {				//Finds group by name
+				my_gs.groupList.remove(g);				//Removes that group from the server
 				return true;
 			}
 		}
