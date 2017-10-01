@@ -1,3 +1,4 @@
+import java.util.ArrayList;
 import java.util.Scanner;
 
 public class RunGroupClient {
@@ -40,35 +41,57 @@ public class RunGroupClient {
 					break;
 					
 				case 1: //Create User
-					
+					if(createUser(input, cli))
+						System.out.println("Successful");
+					else
+						System.out.println("User Creatiion Failed");
 					break;
 				
 				case 2: //Delete User
-					
+					if(deleteUser(input, cli))
+						System.out.println("Successful");
+					else
+						System.out.println("User Deletion Failed");
 					break;
 				
 				case 3: //Create Group
+					if(createGroup(input, cli))
+						System.out.println("Successful");
+					else
+						System.out.println("Group Creation Failed");
 					
 					break;
 				
 				case 4: //Delete Group
-					
+					if(deleteGroup(input, cli))
+						System.out.println("Successful");
+					else
+						System.out.println("Group Deletion Failed");
 					break;
 				
 				case 5: //List Members
-					
+					if(listMembers(input, cli))
+						System.out.println("Successful");
+					else
+						System.out.println("List Members Failed");
 					break;
 				
 				case 6: //Add User To Group
-					
+					if(addUserToGroup(input, cli))
+						System.out.println("Successful");
+					else
+						System.out.println("Add Member Failed");
 					break;
 				
 				case 7: //Delete User From Group
-					
+					if(deleteUserFromGroup(input, cli))
+						System.out.println("Successful");
+					else
+						System.out.println("Delete Member Failed");
 					break;
 				
 				case 8: //Disconnect
-					
+					cli.disconnect();
 					break;
 			}
 		}
@@ -84,5 +107,98 @@ public class RunGroupClient {
 			return true;
 		}
 		return false;
+	}
+	
+	public static boolean createUser(Scanner input, GroupClient cli){
+		UserToken token = cli.tok;
+		if(token.getGroups().contains("ADMIN")){
+			System.out.println("Enter username for new user: ");
+			String name = input.nextLine();
+			if(cli.createUser(name, token))
+				return true;
+			else
+				return false;
+		}
+		else{
+			System.out.println("Admin Privledges Required To Create User");
+			return false;
+		}
+	}
+
+	public static boolean deleteUser(Scanner input, GroupClient cli){
+		UserToken token = cli.tok;
+		if(token.getGroups().contains("ADMIN")){
+			System.out.println("Enter username to delete: ");
+			String name = input.nextLine();
+			UserToken newToken = cli.getToken(name);
+			ArrayList<String> groups = (ArrayList<String>)newToken.getGroups();
+			for(int i =0; i<groups.size();i++){
+				cli.deleteUserFromGroup(name, groups.get(i), token);
+			}
+			if(cli.deleteUser(name, token))
+				return true;
+			else
+				return false;
+		}
+		else{
+			System.out.println("Admin Privledges Required To delete User");
+			return false;
+		}
+	}
+
+	public static boolean createGroup(Scanner input, GroupClient cli){
+		System.out.println("Enter the name for the group: ");
+		String gName = input.nextLine();
+		UserToken token = cli.tok;
+		if(cli.createGroup(gName, token))
+			return true;
+		else
+			return false;
+				
+	}
+
+	public static boolean deleteGroup(Scanner input, GroupClient cli){
+		System.out.println("Enter the name of the group: ");
+		String gName = input.nextLine();
+		UserToken token = cli.tok;
+		if(cli.deleteGroup(gName, token))
+			return true;
+		else
+			return false;
+	}
+
+	public static boolean listMembers(Scanner input, GroupClient cli){
+		System.out.println("Enter the name of the group: ");
+		String gName = input.nextLine();
+		UserToken token = cli.tok;
+		ArrayList<String> members = (ArrayList<String>)cli.listMembers(gName, token);
+		if(members != null)
+			return true;
+		else
+			return false;
+	}
+
+	public static boolean addUserToGroup(Scanner input, GroupClient cli){
+		System.out.println("Enter the name of the user to add: ");
+		String name = input.nextLine();
+		System.out.println("Enter the name of the group: ");
+		String gName = input.nextLine();
+		UserToken token = cli.tok;
+		if(cli.addUserToGroup(name, gName, token))
+			return true;
+		else
+			return false;
+	}
+
+	public static boolean deleteUserFromGroup(Scanner input, GroupClient cli){
+		System.out.println("Enter the name of the user to remove: ");
+		String name = input.nextLine();
+		System.out.println("Enter the name of the group: ");
+		String gName = input.nextLine();
+		UserToken token = cli.tok;
+		if(cli.deleteUserFromGroup(name, gName, token))
+			return true;
+		else
+			return false;
 	}
 }
