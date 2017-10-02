@@ -27,6 +27,7 @@ public class GroupServer extends Server {
 		// Overwrote server.start() because if no user file exists, initial admin account needs to be created
 		
 		String userFile = "UserList.bin";
+		String groupFile = "GroupList.bin";
 		Scanner console = new Scanner(System.in);
 		ObjectInputStream userStream;
 		ObjectInputStream groupStream;
@@ -63,6 +64,27 @@ public class GroupServer extends Server {
 		catch(ClassNotFoundException e)
 		{
 			System.out.println("Error reading from UserList file");
+			System.exit(-1);
+		}
+		try
+		{
+			FileInputStream gis = new FileInputStream(groupFile);
+			groupStream = new ObjectInputStream(gis);
+			groupList = (ArrayList<Group>)groupStream.readObject();
+		}
+		catch(FileNotFoundException e)
+		{
+			System.out.println("groupList File Does Not Exist. Creating groupList...");
+			System.out.println("No groups currently exist.");
+		}
+		catch(IOException e)
+		{
+			System.out.println("Error reading from GroupList file");
+			System.exit(-1);
+		}
+		catch(ClassNotFoundException e)
+		{
+			System.out.println("Error reading from GroupList file");
 			System.exit(-1);
 		}
 		
@@ -109,10 +131,14 @@ class ShutDownListener extends Thread
 	{
 		System.out.println("Shutting down server");
 		ObjectOutputStream outStream;
+		ObjectOutputStream groupOut;
 		try
 		{
 			outStream = new ObjectOutputStream(new FileOutputStream("UserList.bin"));
 			outStream.writeObject(my_gs.userList);
+			groupOut = new ObjectOutputStream(new FileOutputStream("GroupList.bin"));
+			groupOut.writeObject(my_gs.groupList);
+
 		}
 		catch(Exception e)
 		{
@@ -139,10 +165,13 @@ class AutoSave extends Thread
 				Thread.sleep(300000); //Save group and user lists every 5 minutes
 				System.out.println("Autosave group and user lists...");
 				ObjectOutputStream outStream;
+				ObjectOutputStream groupOut;
 				try
 				{
 					outStream = new ObjectOutputStream(new FileOutputStream("UserList.bin"));
 					outStream.writeObject(my_gs.userList);
+					groupOut = new ObjectOutputStream(new FileOutputStream("GroupList.bin"));
+					groupOut.writeObject(my_gs.groupList);
 				}
 				catch(Exception e)
 				{
@@ -159,10 +188,11 @@ class AutoSave extends Thread
 }
 
 
-class Group{
+class Group implements Serializable{
 	public ArrayList<String> memberList;
 	public String name;
 	public String owner;
+	static final long serialVersionUID = 7823049212321412923L;
 	
 	public Group(ArrayList<String> memberList, String name, String owner) {
 		this.memberList = memberList;
