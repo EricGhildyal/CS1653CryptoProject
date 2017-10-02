@@ -3,12 +3,6 @@
  * On exit, the server saves the user list to file. 
  */
 
-/*
- * TODO: This file will need to be modified to save state related to
- *       groups that are created in the system
- *
- */
-
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.io.*;
