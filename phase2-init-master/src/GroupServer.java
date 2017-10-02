@@ -168,7 +168,7 @@ class AutoSave extends Thread
 class Group{
 	public ArrayList<String> memberList;
 	public String name;
-	public Object owner; //TODO figure out how to represent owner
+	public String owner;
 	
 	public Group(ArrayList<String> memberList, String name, String owner) {
 		this.memberList = memberList;

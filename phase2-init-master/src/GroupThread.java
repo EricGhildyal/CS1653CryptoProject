@@ -124,13 +124,16 @@ public class GroupThread extends Thread
 							{
 								String groupName = (String)message.getObjContents().get(0); //Extract the username
 								UserToken yourToken = (UserToken)message.getObjContents().get(1); //Extract the token
-
+								System.out.println("Creating group");
 								if(createGroup(groupName, yourToken)){
+									System.out.println("Successful");
 									response = new Envelope("OK");
 								}
+								
 							}
 						}
 					}
+					output.writeObject(response);
 				}
 				else if(message.getMessage().equals("DGROUP")) //Client wants to delete a group
 				{
@@ -155,6 +158,7 @@ public class GroupThread extends Thread
 							}
 						}
 					}
+					output.writeObject(response);
 				}
 				else if(message.getMessage().equals("LMEMBERS")) //Client wants a list of members in a group
 				{
@@ -177,6 +181,7 @@ public class GroupThread extends Thread
 							}
 						}
 					}
+					output.writeObject(response);
 				}
 				else if(message.getMessage().equals("AUSERTOGROUP")) //Client wants to add user to a group
 				{
@@ -205,6 +210,7 @@ public class GroupThread extends Thread
 							}
 						}
 					}
+					output.writeObject(response);
 				}
 				else if(message.getMessage().equals("RUSERFROMGROUP")) //Client wants to remove user from a group
 				{
@@ -233,6 +239,7 @@ public class GroupThread extends Thread
 							}
 						}
 					}
+					output.writeObject(response);
 				}
 				else if(message.getMessage().equals("DISCONNECT")) //Client wants to disconnect
 				{
@@ -244,6 +251,7 @@ public class GroupThread extends Thread
 					response = new Envelope("FAIL"); //Server does not understand client request
 					output.writeObject(response);
 				}
+				
 			}while(proceed);
 		}
 		catch(Exception e)
@@ -255,11 +263,17 @@ public class GroupThread extends Thread
 	
 	//Removes a user from the group on the server 
 	private boolean removeUserFromGroup(String username, String groupName, UserToken token){
+		if(my_gs.userList.getUserOwnership(username).contains(groupName)) {
+			System.err.println("Cannot remove a user from a group they own.");
+			return false;
+		}
+		
 		for (Group g : my_gs.groupList) {
 			if(g.name.equals(groupName)) {				//Finds the group by name
 				for (String u : g.memberList) {
 					if(u.equals(username)) {			//Finds the user in that group
 						g.memberList.remove(u);			//Removes the user
+						my_gs.userList.removeGroup(username, groupName);
 						return true;
 					}
 					
@@ -273,19 +287,24 @@ public class GroupThread extends Thread
 	}
 	//Adds a user to a group on the server
 	private boolean addUserToGroup(String username, String groupName, UserToken token){
-		for (Group g : my_gs.groupList) {
-			if(g.name.equals(groupName)) {				//Finds a group by name
-				for (String u : g.memberList) {
-					if(u.equals(username)) {			//Checks if user is already in the group
-						System.err.printf("Error: User %s is already in group %s!\n", username, groupName);
-						return false;
+		if(my_gs.userList.checkUser(username)) {
+			for (Group g : my_gs.groupList) {
+				if(g.name.equals(groupName)) {				//Finds a group by name
+					for (String u : g.memberList) {
+						if(u.equals(username)) {			//Checks if user is already in the group
+							System.err.printf("Error: User %s is already in group %s!\n", username, groupName);
+							return false;
+						}
 					}
+					g.memberList.add(username);				//If the user is not in the group, it adds them
+					my_gs.userList.addGroup(username, groupName);
+					return true;
 				}
-				g.memberList.add(username);				//If the user is not in the group, it adds them
-				return true;
 			}
+			System.err.printf("Error: Group %s not found!\n", groupName);
+			return false;
 		}
-		System.err.printf("Error: Group %s not found!\n", groupName);
+		System.err.printf("Error: User %s not found!\n", username);
 		return false;
 	}
 
@@ -307,13 +326,19 @@ public class GroupThread extends Thread
 				System.err.printf("Error: Group %s already exists!\n", groupName);
 				return false;
 			}
-		}												//If not, it creates it and returns true
-		my_gs.groupList.add(new Group(new ArrayList<String>(), groupName, token.getSubject()));
+		}												//If not, it creates it, adds the creating user to it and returns true
+		Group tGroup = new Group(new ArrayList<String>(), groupName, token.getSubject());
+		tGroup.memberList.add(token.getSubject());
+		my_gs.groupList.add(tGroup);
 		return true;
 	}
 
 	//Deletes a group from the server
 	private boolean deleteGroup(String groupName,UserToken token){
+		if(groupName.equals("ADMIN")) {
+			System.err.println("The ADMIN group cannot be deleted");
+			return false;
+		}
 		for (Group g : my_gs.groupList) {
 			if(g.name.equals(groupName)) {				//Finds group by name
 				my_gs.groupList.remove(g);				//Removes that group from the server
@@ -379,8 +404,14 @@ public class GroupThread extends Thread
 	//Method to delete a user
 	private boolean deleteUser(String username, UserToken yourToken)
 	{
+			
+		if(my_gs.userList.getUserOwnership(username).contains("ADMIN")) {
+			System.err.println("The owner of the admin group cannot be deleted!");
+			return false;
+		}
+		
 		String requester = yourToken.getSubject();
-
+		
 		//Does requester exist?
 		if(my_gs.userList.checkUser(requester))
 		{
@@ -392,12 +423,16 @@ public class GroupThread extends Thread
 				if(my_gs.userList.checkUser(username))
 				{
 					//User needs deleted from the groups they belong
-					ArrayList<String> deleteFromGroups = new ArrayList<String>();
+					ArrayList<String> deleteFromGroups = new ArrayList<String>();	
 
 					//This will produce a hard copy of the list of groups this user belongs
 					for(int index = 0; index < my_gs.userList.getUserGroups(username).size(); index++)
 					{
 						deleteFromGroups.add(my_gs.userList.getUserGroups(username).get(index));
+					}
+					
+					for(int i = 0; i< deleteFromGroups.size(); i++) {
+						System.out.println(removeUserFromGroup(username, deleteFromGroups.get(i), yourToken));
 					}
 
 					//If groups are owned, they must be deleted

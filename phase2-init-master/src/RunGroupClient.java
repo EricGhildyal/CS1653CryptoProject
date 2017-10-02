@@ -17,7 +17,7 @@ public class RunGroupClient {
 		Scanner input = new Scanner(System.in);
 		while(menuChoice != 8) {
 			do{
-				System.out.println("Please select an option:");
+				System.out.println("\n---Please select an option---");
 				System.out.println("0.GetUserToken\n"
 								 + "1.Create User\n"
 								 + "2.Delete User\n"
@@ -27,7 +27,12 @@ public class RunGroupClient {
 								 + "6.Add User to Group\n"
 								 + "7.Delete User from Group\n"
 								 + "8.Disconnect");
-			menuChoice = input.nextInt();
+			
+			if(input.hasNextInt()) {	
+				menuChoice = input.nextInt();
+			}else {
+				menuChoice = -1;
+			}
 			input.nextLine(); 				//Consume the endline
 			}while(menuChoice < 0 || menuChoice > 8);
 			
@@ -130,11 +135,6 @@ public class RunGroupClient {
 		if(token.getGroups().contains("ADMIN")){
 			System.out.println("Enter username to delete: ");
 			String name = input.nextLine();
-			UserToken newToken = cli.getToken(name);
-			ArrayList<String> groups = (ArrayList<String>)newToken.getGroups();
-			for(int i =0; i<groups.size();i++){
-				cli.deleteUserFromGroup(name, groups.get(i), token);
-			}
 			if(cli.deleteUser(name, token))
 				return true;
 			else
@@ -150,10 +150,12 @@ public class RunGroupClient {
 		System.out.println("Enter the name for the group: ");
 		String gName = input.nextLine();
 		UserToken token = cli.tok;
-		if(cli.createGroup(gName, token))
+		if(cli.createGroup(gName, token)) {
+			System.out.println("tru");
 			return true;
-		else
-			return false;
+		}
+		System.out.println("Not tru");
+		return false;
 				
 	}
 
@@ -172,9 +174,14 @@ public class RunGroupClient {
 		String gName = input.nextLine();
 		UserToken token = cli.tok;
 		ArrayList<String> members = (ArrayList<String>)cli.listMembers(gName, token);
-		if(members != null)
+		if(members != null) {
+			System.out.printf("----List of Members in %s----\n", gName);
+			for(String mem : members) {
+				System.out.println(mem);
+			}
+			System.out.println("\n");
 			return true;
-		else
+		}else
 			return false;
 	}
 
