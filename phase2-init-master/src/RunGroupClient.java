@@ -58,81 +58,125 @@ public class RunGroupClient {
 					break;
 					
 				case 1: //Create User
-					if(createUser(input, gcli))
-						System.out.println("Successful");
+					if(gcli.tok != null){
+						if(createUser(input, gcli))
+							System.out.println("Successful");
+						else
+							System.out.println("User Creatiion Failed");
+					}
 					else
-						System.out.println("User Creatiion Failed");
+						System.out.println("Please get token before attempting other actions");
 					break;
 				
 				case 2: //Delete User
-					if(deleteUser(input, gcli))
-						System.out.println("Successful");
+					if(gcli.tok != null){
+						if(deleteUser(input, gcli))
+							System.out.println("Successful");
+						else
+							System.out.println("User Deletion Failed");
+					}
 					else
-						System.out.println("User Deletion Failed");
+						System.out.println("Please get token before attempting other actions");
 					break;
 				
 				case 3: //Create Group
-					if(createGroup(input, gcli))
-						System.out.println("Successful");
+					if(gcli.tok != null){
+						if(createGroup(input, gcli))
+							System.out.println("Successful");
+						else
+							System.out.println("Group Creation Failed");
+					}
 					else
-						System.out.println("Group Creation Failed");
+						System.out.println("Please get token before attempting other actions");
 					
 					break;
 				
 				case 4: //Delete Group
-					if(deleteGroup(input, gcli))
-						System.out.println("Successful");
+					if(gcli.tok !=null){
+						if(deleteGroup(input, gcli))
+							System.out.println("Successful");
+						else
+							System.out.println("Group Deletion Failed");
+					}
 					else
-						System.out.println("Group Deletion Failed");
+						System.out.println("Please get token before attempting other actions");
 					break;
 				
 				case 5: //List Members
-					if(listMembers(input, gcli))
-						System.out.println("Successful");
+					if(gcli.tok != null){
+						if(listMembers(input, gcli))
+							System.out.println("Successful");
+						else
+							System.out.println("List Members Failed");
+					}
 					else
-						System.out.println("List Members Failed");
+						System.out.println("Please get token before attempting other actions");
 					break;
 				
 				case 6: //Add User To Group
-					if(addUserToGroup(input, gcli))
-						System.out.println("Successful");
+					if(gcli.tok != null){
+						if(addUserToGroup(input, gcli))
+							System.out.println("Successful");
+						else
+							System.out.println("Add Member Failed");
+					}
 					else
-						System.out.println("Add Member Failed");
+						System.out.println("Please get token before attempting other actions");
 					break;
 				
 				case 7: //Delete User From Group
-					if(deleteUserFromGroup(input, gcli))
-						System.out.println("Successful");
+					if(gcli.tok != null){
+						if(deleteUserFromGroup(input, gcli))
+							System.out.println("Successful");
+						else
+							System.out.println("Delete Member Failed");
+					}
 					else
-						System.out.println("Delete Member Failed");
+						System.out.println("Please get token before attempting other actions");
 					break;
 					
 				case 8: //List Files
-					if(listFiles(gcli.tok, fcli))
-						System.out.println("Successful");
+					if(gcli.tok != null){
+						if(listFiles(gcli.tok, fcli))
+							System.out.println("Successful");
+						else
+							System.out.println("List Files Failed");
+					}
 					else
-						System.out.println("Delete Member Failed");
+						System.out.println("Please get token before attempting other actions");
 					break;
 				
 				case 9: //Upload File
-					if(uploadFile(input, gcli.tok, fcli))
-						System.out.println("Successful");
+					if(gcli.tok != null){
+						if(uploadFile(input, gcli.tok, fcli))
+							System.out.println("Successful");
+						else
+							System.out.println("Upload File Failed");
+					}
 					else
-						System.out.println("Delete Member Failed");
+						System.out.println("Please get token before attempting other actions");
 					break;
 					
 				case 10: //Download File
-					if(deleteUserFromGroup(input, gcli))
-						System.out.println("Successful");
+					if(gcli.tok != null){
+						if(deleteUserFromGroup(input, gcli))
+							System.out.println("Successful");
+						else
+							System.out.println("Download File Failed");
+					}
 					else
-						System.out.println("Delete Member Failed");
+						System.out.println("Please get token before attempting other actions");
 					break;
 					
 				case 11: //Delete File
-					if(deleteUserFromGroup(input, gcli))
-						System.out.println("Successful");
+					if(gcli.tok != null){
+						if(deleteUserFromGroup(input, gcli))
+							System.out.println("Successful");
+						else
+							System.out.println("Delete File Failed");
+					}
 					else
-						System.out.println("Delete Member Failed");
+						System.out.println("Please get token before attempting other actions");
 					break;
 				
 				case 12: //Disconnect
