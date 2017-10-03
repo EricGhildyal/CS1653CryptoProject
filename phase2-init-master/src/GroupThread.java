@@ -77,7 +77,7 @@ public class GroupThread extends Thread
 							}
 						}
 					}
-
+					output.reset();
 					output.writeObject(response);
 				}
 				else if(message.getMessage().equals("DUSER")) //Client wants to delete a user
@@ -105,7 +105,7 @@ public class GroupThread extends Thread
 							}
 						}
 					}
-
+					output.reset();
 					output.writeObject(response);
 				}
 				else if(message.getMessage().equals("CGROUP")) //Client wants to create a group
@@ -133,6 +133,7 @@ public class GroupThread extends Thread
 							}
 						}
 					}
+					output.reset();
 					output.writeObject(response);
 				}
 				else if(message.getMessage().equals("DGROUP")) //Client wants to delete a group
@@ -158,6 +159,7 @@ public class GroupThread extends Thread
 							}
 						}
 					}
+					output.reset();
 					output.writeObject(response);
 				}
 				else if(message.getMessage().equals("LMEMBERS")) //Client wants a list of members in a group
@@ -181,6 +183,7 @@ public class GroupThread extends Thread
 							}
 						}
 					}
+					output.reset();
 					output.writeObject(response);
 				}
 				else if(message.getMessage().equals("AUSERTOGROUP")) //Client wants to add user to a group
@@ -210,6 +213,7 @@ public class GroupThread extends Thread
 							}
 						}
 					}
+					output.reset();
 					output.writeObject(response);
 				}
 				else if(message.getMessage().equals("RUSERFROMGROUP")) //Client wants to remove user from a group
@@ -239,6 +243,7 @@ public class GroupThread extends Thread
 							}
 						}
 					}
+					output.reset();
 					output.writeObject(response);
 				}
 				else if(message.getMessage().equals("DISCONNECT")) //Client wants to disconnect
@@ -249,6 +254,7 @@ public class GroupThread extends Thread
 				else
 				{
 					response = new Envelope("FAIL"); //Server does not understand client request
+					output.reset();
 					output.writeObject(response);
 				}
 				

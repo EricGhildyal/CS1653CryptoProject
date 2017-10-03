@@ -61,6 +61,7 @@ public class GroupClient extends Client implements GroupClientInterface {
 				//If server indicates success, return true
 				if(response.getMessage().equals("OK"))
 				{
+					output.reset();
 					return true;
 				}
 				
@@ -91,6 +92,7 @@ public class GroupClient extends Client implements GroupClientInterface {
 				//If server indicates success, return true
 				if(response.getMessage().equals("OK"))
 				{
+					output.reset();
 					return true;
 				}
 				
@@ -120,6 +122,7 @@ public class GroupClient extends Client implements GroupClientInterface {
 				//If server indicates success, return true
 				if(response.getMessage().equals("OK"))
 				{
+					output.reset();
 					return true;
 				}
 				
@@ -148,6 +151,7 @@ public class GroupClient extends Client implements GroupClientInterface {
 				//If server indicates success, return true
 				if(response.getMessage().equals("OK"))
 				{
+					output.reset();
 					return true;
 				}
 				
@@ -178,6 +182,7 @@ public class GroupClient extends Client implements GroupClientInterface {
 			 //If server indicates success, return the member list
 			 if(response.getMessage().equals("OK"))
 			 { 
+				 output.reset();
 				return (List<String>)response.getObjContents().get(0); //This cast creates compiler warnings. Sorry.
 			 }
 				
@@ -208,6 +213,7 @@ public class GroupClient extends Client implements GroupClientInterface {
 				//If server indicates success, return true
 				if(response.getMessage().equals("OK"))
 				{
+					output.reset();
 					return true;
 				}
 				
@@ -237,6 +243,7 @@ public class GroupClient extends Client implements GroupClientInterface {
 				//If server indicates success, return true
 				if(response.getMessage().equals("OK"))
 				{
+					output.reset();
 					return true;
 				}
 				
