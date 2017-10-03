@@ -2,6 +2,8 @@
 
 import java.lang.Thread;
 import java.net.Socket;
+import java.util.ArrayList;
+import java.util.List;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -35,24 +37,19 @@ public class FileThread extends Thread
 				// Handler to list files that this user is allowed to see
 				if(e.getMessage().equals("LFILES"))
 				{
-					if(e.getObjContents().size() < 2)
-					{
-						response = new Envelope("FAIL-BADCONTENTS");
-					}else {
-						
-						if(e.getObjContents().get(0) == null) {
-							response = new Envelope("FAIL-BADGROUP");
-						}
-						if(e.getObjContents().get(1) == null) {
-							response = new Envelope("FAIL-BADTOKEN");
-						}
-						else {
-							String group = (String)e.getObjContents().get(0);
-							UserToken yourToken = (UserToken)e.getObjContents().get(1);
-							
-						}
+					List<String> list = new ArrayList<String>();
 
+					UserToken yourToken = (UserToken)e.getObjContents().get(0);
+					List<String> groups = yourToken.getGroups(); //list of current groups user is a member of
+					FileList tmp = FileServer.fileList; //list of files on the server
+					for(ShareFile f :tmp.getFiles()) {
+						String group = f.getGroup();
+						if(groups.contains(group)) //compare this file's group to our user group list
+							list.add(f.getPath());
 					}
+					response = new Envelope("OK");
+					response.addObject(list);
+					output.writeObject(response);
 				}
 				if(e.getMessage().equals("UPLOADF"))
 				{
@@ -158,7 +155,7 @@ public class FileThread extends Thread
 								e = new Envelope("CHUNK");
 								int n = fis.read(buf); //can throw an IOException
 								if (n > 0) {
-									System.out.printf(".");
+									// System.out.printf(".");
 								} else if (n < 0) {
 									System.out.println("Read error");
 

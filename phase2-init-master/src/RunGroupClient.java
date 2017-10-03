@@ -140,10 +140,8 @@ public class RunGroupClient {
 					
 				case 8: //List Files
 					if(gcli.tok != null){
-						if(listFiles(gcli.tok, fcli))
-							System.out.println("Successful");
-						else
-							System.out.println("List Files Failed");
+						if(!listFiles(gcli.tok, fcli))
+							System.out.println("List Files Failed\n");
 					}
 					else
 						System.out.println("Please get token before attempting other actions");
@@ -152,7 +150,7 @@ public class RunGroupClient {
 				case 9: //Upload File
 					if(gcli.tok != null){
 						if(uploadFile(input, gcli.tok, fcli))
-							System.out.println("Successful");
+							System.out.println("Successfully Uploaded File\n");
 						else
 							System.out.println("Upload File Failed");
 					}
@@ -162,8 +160,8 @@ public class RunGroupClient {
 					
 				case 10: //Download File
 					if(gcli.tok != null){
-						if(deleteUserFromGroup(input, gcli))
-							System.out.println("Successful");
+						if(downloadFile(input, gcli.tok, fcli))
+							System.out.println("Successfully Downloaded File\n");
 						else
 							System.out.println("Download File Failed");
 					}
@@ -174,7 +172,7 @@ public class RunGroupClient {
 				case 11: //Delete File
 					if(gcli.tok != null){
 						if(deleteUserFromGroup(input, gcli))
-							System.out.println("Successful");
+							System.out.println("Successfully Deleted User\n");
 						else
 							System.out.println("Delete File Failed");
 					}

@@ -59,7 +59,7 @@ public class FileClient extends Client implements FileClientInterface {
 
 						while (env.getMessage().compareTo("CHUNK")==0) {
 								fos.write((byte[])env.getObjContents().get(0), 0, (Integer)env.getObjContents().get(1));
-								System.out.printf(".");
+								// System.out.printf(".");
 								env = new Envelope("DOWNLOADF"); //Success
 								output.writeObject(env);
 								env = (Envelope)input.readObject();
@@ -109,7 +109,6 @@ public class FileClient extends Client implements FileClientInterface {
 			 output.writeObject(message);
 
 			 e = (Envelope)input.readObject();
-			 System.out.println("e: " + e);
 
 			 //If server indicates success, return the member list
 			 if(e.getMessage().equals("OK"))
@@ -174,7 +173,7 @@ public class FileClient extends Client implements FileClientInterface {
 				 	message = new Envelope("CHUNK");
 					int n = fis.read(buf); //can throw an IOException
 					if (n > 0) {
-						System.out.printf(".");
+						// System.out.printf(".");
 					} else if (n < 0) {
 						System.out.println("Read error");
 						return false;
