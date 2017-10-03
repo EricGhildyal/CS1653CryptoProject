@@ -49,6 +49,7 @@ public class FileThread extends Thread
 					}
 					response = new Envelope("OK");
 					response.addObject(list);
+					output.reset();
 					output.writeObject(response);
 				}
 				if(e.getMessage().equals("UPLOADF"))
@@ -89,12 +90,14 @@ public class FileThread extends Thread
 								System.out.printf("Successfully created file %s\n", remotePath.replace('/', '_'));
 
 								response = new Envelope("READY"); //Success
+								output.reset();
 								output.writeObject(response);
 
 								e = (Envelope)input.readObject();
 								while (e.getMessage().compareTo("CHUNK")==0) {
 									fos.write((byte[])e.getObjContents().get(0), 0, (Integer)e.getObjContents().get(1));
 									response = new Envelope("READY"); //Success
+									output.reset();
 									output.writeObject(response);
 									e = (Envelope)input.readObject();
 								}
@@ -112,7 +115,7 @@ public class FileThread extends Thread
 							}
 						}
 					}
-
+					output.reset();
 					output.writeObject(response);
 				}
 				else if (e.getMessage().compareTo("DOWNLOADF")==0) {
@@ -123,12 +126,14 @@ public class FileThread extends Thread
 					if (sf == null) {
 						System.out.printf("Error: File %s doesn't exist\n", remotePath);
 						e = new Envelope("ERROR_FILEMISSING");
+						output.reset();
 						output.writeObject(e);
 
 					}
 					else if (!t.getGroups().contains(sf.getGroup())){
 						System.out.printf("Error user %s doesn't have permission\n", t.getSubject());
 						e = new Envelope("ERROR_PERMISSION");
+						output.reset();
 						output.writeObject(e);
 					}
 					else {
@@ -139,6 +144,7 @@ public class FileThread extends Thread
 						if (!f.exists()) {
 							System.out.printf("Error file %s missing from disk\n", "_"+remotePath.replace('/', '_'));
 							e = new Envelope("ERROR_NOTONDISK");
+							output.reset();
 							output.writeObject(e);
 
 						}
@@ -165,6 +171,7 @@ public class FileThread extends Thread
 								e.addObject(buf);
 								e.addObject(new Integer(n));
 
+								output.reset();
 								output.writeObject(e);
 
 								e = (Envelope)input.readObject();
@@ -178,6 +185,7 @@ public class FileThread extends Thread
 							{
 
 								e = new Envelope("EOF");
+								output.reset();
 								output.writeObject(e);
 
 								e = (Envelope)input.readObject();
@@ -250,6 +258,7 @@ public class FileThread extends Thread
 							e = new Envelope(e1.getMessage());
 						}
 					}
+					output.reset();
 					output.writeObject(e);
 
 				}
