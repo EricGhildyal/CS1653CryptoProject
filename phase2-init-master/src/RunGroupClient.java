@@ -67,7 +67,7 @@ public class RunGroupClient {
 						if(createUser(input, gcli))
 							System.out.println("Successfully Created User\n");
 						else
-							System.out.println("User Creatiion Failed");
+							System.out.println("User Creation Failed");
 					}
 					else
 						System.out.println("Please get token before attempting other actions");
