@@ -149,10 +149,8 @@ public class RunGroupClient {
 				
 				case 9: //Upload File
 					if(gcli.tok != null){
-						if(uploadFile(input, gcli.tok, fcli))
-							System.out.println();
-						else
-							System.out.println();
+						uploadFile(input, gcli.tok, fcli);
+						System.out.println("");
 					}
 					else
 						System.out.println("Please get token before attempting other actions");
@@ -160,10 +158,8 @@ public class RunGroupClient {
 					
 				case 10: //Download File
 					if(gcli.tok != null){
-						if(downloadFile(input, gcli.tok, fcli))
-							System.out.println();
-						else
-							System.out.println();
+						downloadFile(input, gcli.tok, fcli);
+						System.out.println("");
 					}
 					else
 						System.out.println("Please get token before attempting other actions");
@@ -171,10 +167,8 @@ public class RunGroupClient {
 					
 				case 11: //Delete File
 					if(gcli.tok != null){
-						if(deleteFile(input, gcli.tok, fcli))
-							System.out.println();
-						else
-							System.out.println();
+						deleteFile(input, gcli.tok, fcli);
+						System.out.println();
 					}
 					else
 						System.out.println("Please get token before attempting other actions");
@@ -318,6 +312,11 @@ public class RunGroupClient {
 	}
 	
 	public static boolean listFiles(UserToken token, FileClient fcli) {
+		try {
+			Thread.sleep(1000); //sleep for one second to let server upload file
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
 		List<String> files = fcli.listFiles(token);
 		if(files == null) {
 			System.out.println("Something went wrong with your request!");
@@ -344,10 +343,10 @@ public class RunGroupClient {
 			System.out.println("Please enter a valid file name: ");
 			destFile = input.nextLine();
 		}
-		System.out.println("Please enter the group file name: ");
+		System.out.println("Please enter the group name: ");
 		String group = input.nextLine();
 		if(group.isEmpty()) {
-			System.out.println("Please enter a valid file name: ");
+			System.out.println("Please enter a valid group name: ");
 			group = input.nextLine();
 		}
 		return fcli.upload(sourceFile, destFile, group, token);
