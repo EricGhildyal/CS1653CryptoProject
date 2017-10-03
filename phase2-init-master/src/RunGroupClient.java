@@ -171,7 +171,7 @@ public class RunGroupClient {
 					
 				case 11: //Delete File
 					if(gcli.tok != null){
-						if(deleteUserFromGroup(input, gcli))
+						if(deleteFile(input, gcli.tok, fcli))
 							System.out.println("Successfully Deleted User\n");
 						else
 							System.out.println("Delete File Failed");
@@ -370,7 +370,7 @@ public class RunGroupClient {
 	}
 	
 	public static boolean deleteFile(Scanner input, UserToken token, FileClient fcli) {
-		System.out.println("Please enter the file you would liek to delete: ");
+		System.out.println("Please enter the file you would like to delete: ");
 		String filename = input.nextLine();
 		if(filename.isEmpty()) {
 			System.out.println("Please enter a valid file name: ");
