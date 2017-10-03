@@ -336,6 +336,7 @@ public class GroupThread extends Thread
 		Group tGroup = new Group(new ArrayList<String>(), groupName, token.getSubject());
 		tGroup.memberList.add(token.getSubject());
 		my_gs.groupList.add(tGroup);
+		my_gs.userList.addGroup(token.getSubject(), groupName);
 		return true;
 	}
 
@@ -363,6 +364,7 @@ public class GroupThread extends Thread
 		{
 			//Issue a new token with server's name, user's name, and user's groups
 			UserToken yourToken = new Token(my_gs.name, username, my_gs.userList.getUserGroups(username));
+			System.out.println(yourToken);
 			return yourToken;
 		}
 		else
