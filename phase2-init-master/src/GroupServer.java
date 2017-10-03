@@ -27,9 +27,9 @@ public class GroupServer extends Server {
 		// Overwrote server.start() because if no user file exists, initial admin account needs to be created
 		
 		String userFile = "UserList.bin";
+		@SuppressWarnings("resource")
 		Scanner console = new Scanner(System.in);
-		ObjectInputStream userStream;
-		ObjectInputStream groupStream;
+		ObjectInputStream inStream;
 		
 		//This runs a thread that saves the lists on program exit
 		Runtime runtime = Runtime.getRuntime();
@@ -39,8 +39,8 @@ public class GroupServer extends Server {
 		try
 		{
 			FileInputStream fis = new FileInputStream(userFile);
-			userStream = new ObjectInputStream(fis);
-			userList = (UserList)userStream.readObject();
+			inStream = new ObjectInputStream(fis);
+			userList = (UserList)inStream.readObject();
 		}
 		catch(FileNotFoundException e)
 		{
@@ -75,7 +75,9 @@ public class GroupServer extends Server {
 		try
 		{
 			
+			@SuppressWarnings("resource")
 			final ServerSocket serverSock = new ServerSocket(port);
+			System.out.printf("%s up and running\n", this.getClass().getName());
 			
 			Socket sock = null;
 			GroupThread thread = null;
@@ -86,6 +88,7 @@ public class GroupServer extends Server {
 				thread = new GroupThread(sock, this);
 				thread.start();
 			}
+			
 		}
 		catch(Exception e)
 		{

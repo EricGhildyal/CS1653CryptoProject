@@ -109,6 +109,7 @@ public class FileClient extends Client implements FileClientInterface {
 			 output.writeObject(message);
 
 			 e = (Envelope)input.readObject();
+			 System.out.println("e: " + e);
 
 			 //If server indicates success, return the member list
 			 if(e.getMessage().equals("OK"))
@@ -119,10 +120,10 @@ public class FileClient extends Client implements FileClientInterface {
 			 return null;
 
 		 }
-		 catch(Exception e)
+		 catch(Exception ex)
 			{
-				System.err.println("Error: " + e.getMessage());
-				e.printStackTrace(System.err);
+				System.err.println("Error in listFiles: " + ex.getMessage());
+				ex.printStackTrace(System.err);
 				return null;
 			}
 	}
@@ -130,7 +131,7 @@ public class FileClient extends Client implements FileClientInterface {
 	public boolean upload(String sourceFile, String destFile, String group,
 			UserToken token) {
 
-		if (destFile.charAt(0)!='/') {
+		if (destFile.charAt(0)!='/') { //insert "/" at beginning of filename if it doesn't exist
 			 destFile = "/" + destFile;
 		 }
 
@@ -146,7 +147,8 @@ public class FileClient extends Client implements FileClientInterface {
 			 output.writeObject(message);
 
 
-			 FileInputStream fis = new FileInputStream(sourceFile);
+			 @SuppressWarnings("resource")
+			FileInputStream fis = new FileInputStream(sourceFile);
 
 			 env = (Envelope)input.readObject();
 

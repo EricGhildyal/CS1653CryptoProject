@@ -21,7 +21,6 @@ public abstract class Client {
 	 * @return Whether or not the connection was sucessful or not
 	 */
 	public boolean connect(final String server, final int port) {
-		System.out.println("attempting to connect");
 		try {	
 			this.sock = new Socket(server, port);
 			output = new ObjectOutputStream(this.sock.getOutputStream());  //Declare the output and input streams

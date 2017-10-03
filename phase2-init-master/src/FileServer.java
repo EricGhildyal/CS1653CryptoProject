@@ -92,6 +92,7 @@ public class FileServer extends Server {
 			}
 			
 			System.out.printf("%s shut down\n", this.getClass().getName());
+			serverSock.close();
 		}
 		catch(Exception e)
 		{

@@ -2,7 +2,6 @@
 
 import java.lang.Thread;
 import java.net.Socket;
-import java.util.List;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -36,7 +35,24 @@ public class FileThread extends Thread
 				// Handler to list files that this user is allowed to see
 				if(e.getMessage().equals("LFILES"))
 				{
-				    /* TODO: Write this handler */
+					if(e.getObjContents().size() < 2)
+					{
+						response = new Envelope("FAIL-BADCONTENTS");
+					}else {
+						
+						if(e.getObjContents().get(0) == null) {
+							response = new Envelope("FAIL-BADGROUP");
+						}
+						if(e.getObjContents().get(1) == null) {
+							response = new Envelope("FAIL-BADTOKEN");
+						}
+						else {
+							String group = (String)e.getObjContents().get(0);
+							UserToken yourToken = (UserToken)e.getObjContents().get(1);
+							
+						}
+
+					}
 				}
 				if(e.getMessage().equals("UPLOADF"))
 				{
@@ -130,6 +146,7 @@ public class FileThread extends Thread
 
 						}
 						else {
+							@SuppressWarnings("resource")
 							FileInputStream fis = new FileInputStream(f);
 
 							do {
