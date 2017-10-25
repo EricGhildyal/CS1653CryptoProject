@@ -16,9 +16,20 @@ To start the File Server:
  - Enter the directory containing `RunFileServer.class`
  - Type `java RunFileServer [port number]`
 
-Note that the port number argument to `RunFileServer is optional.  This argument speficies the port that the File Server will list to. If unspecified, it defaults to port 4321.
+Note that the port number argument to `RunFileServer` is optional.  This argument speficies the port that the File Server will list to. If unspecified, it defaults to port 4321.
 
 The file server will create a shared_files inside the working directory if one does not exist. The file server is now online.
+
+
+## Running Client
+
+To start the client:
+- Enter the directory containing `RunGroupClient.class`
+- Type `java RunGroupClient`
+
+You will be presented a menu that will allow you to perform desired actions. (Note: you must use option `0. Get User Token` first to get a token before you can perform any of the other actions)
+
+All other actions will prompt you for the required inputs.
 
 ## Resetting the Group or File Server
 
