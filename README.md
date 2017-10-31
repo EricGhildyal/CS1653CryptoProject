@@ -1,8 +1,2 @@
-# CS1653CryptoProject
-
-CS1653 Semester Project
-
-# Group Members
-Alex Dawson  
-David Rocker  
-Eric Ghildyal
+# phase2-init
+Starter code for project phase 2
