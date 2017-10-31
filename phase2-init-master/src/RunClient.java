@@ -1,14 +1,22 @@
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
+import java.lang.Integer;
 
-public class RunGroupClient {
-
+public class RunClient {
+	//group server ip/group server port/fileserver ip/file server port
 	public static void main(String[] args) {
 		GroupClient gcli = new GroupClient();
-		gcli.connect(null, GroupServer.SERVER_PORT);
+		if(args[0] != null && args[1] != null)
+			gcli.connect(args[0], Integer.parseInt(args[1]));
+		else
+			gcli.connect(null, GroupServer.SERVER_PORT);
+
 		FileClient fcli = new FileClient();
-		fcli.connect(null, FileServer.SERVER_PORT);
+		if(args[2] != null && args[3] != null)
+			fcli.connect(args[2], Integer.parseInt(args[3]));
+		else
+			fcli.connect(null, FileServer.SERVER_PORT);
 		
 		//Test connections, if one fails: exit
 		if(gcli.isConnected()) {
