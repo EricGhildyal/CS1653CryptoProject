@@ -10,13 +10,92 @@ import java.io.FileOutputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 
+//import com.sun.crypto.provider.DHKeyPairGenerator;
+
+import java.security.*;
+import java.util.Scanner;
+import java.io.ByteArrayOutputStream;
+import java.io.ByteArrayInputStream;
+import java.math.*;
+import javax.crypto.*;
+import javax.crypto.spec.IvParameterSpec;
+import java.util.Random;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
+import org.bouncycastle.crypto.generators.DHParametersGenerator;
+import org.bouncycastle.crypto.params.DHParameters;
+import org.bouncycastle.crypto.params.DHKeyGenerationParameters;
+import org.bouncycastle.crypto.generators.DHKeyPairGenerator;
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair;
+import org.bouncycastle.crypto.params.AsymmetricKeyParameter;
+import java.util.Random;
+import java.io.IOException;
+import java.lang.ClassNotFoundException;
+import org.bouncycastle.asn1.x9.DHPublicKey;
+import org.bouncycastle.crypto.generators.*;
+import org.bouncycastle.crypto.params.*;
+import org.bouncycastle.crypto.params.DHKeyGenerationParameters;
+import org.bouncycastle.crypto.generators.DHKeyPairGenerator;
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair;
+import org.bouncycastle.crypto.params.AsymmetricKeyParameter;
+import org.bouncycastle.crypto.agreement.DHAgreement;
+
+
+
+
 public class FileThread extends Thread
 {
 	private final Socket socket;
+	final ObjectInputStream input;
+	final ObjectOutputStream output;
 
-	public FileThread(Socket _socket)
+	public FileThread(Socket _socket) throws IOException, ClassNotFoundException
 	{
 		socket = _socket;
+		input = new ObjectInputStream(socket.getInputStream());
+		output = new ObjectOutputStream(socket.getOutputStream());
+		Envelope gMSG = (Envelope)input.readObject();
+		//input.reset();
+		//System.out.println(g.getMessage());
+		Envelope pMSG = (Envelope)input.readObject();
+		//System.out.println(p.getMessage());
+		//input.reset();
+		Envelope clientPubMSG = (Envelope)input.readObject();
+		ArrayList<Object> nums = gMSG.getObjContents();
+		BigInteger g = (BigInteger)nums.get(0);
+		nums = pMSG.getObjContents();
+		BigInteger p =(BigInteger)nums.get(0);
+		nums = clientPubMSG.getObjContents();
+		BigInteger clientPubKey = (BigInteger)nums.get(0);
+		System.out.println(clientPubKey);
+
+		DHParameters params = new DHParameters(p, g);
+		DHKeyGenerationParameters keyGenParams = new DHKeyGenerationParameters(new SecureRandom(), params);
+		DHKeyPairGenerator keyGen = new DHKeyPairGenerator();
+		keyGen.init(keyGenParams);
+		AsymmetricCipherKeyPair serverKeys = keyGen.generateKeyPair();
+		DHPublicKeyParameters publicKeyParam = (DHPublicKeyParameters)serverKeys.getPublic();
+		DHPrivateKeyParameters privateKeyParam = (DHPrivateKeyParameters)serverKeys.getPrivate();
+		BigInteger pubKey = publicKeyParam.getY();
+		Envelope serverPub = new Envelope("key");
+		serverPub.addObject(pubKey);
+		output.writeObject(serverPub);
+		output.flush();
+		DHPublicKeyParameters clientPub = new DHPublicKeyParameters(clientPubKey, params);
+		DHAgreement keyAgree = new DHAgreement();
+		keyAgree.init(serverKeys.getPrivate());
+		BigInteger msg = keyAgree.calculateMessage();
+		BigInteger key = keyAgree.calculateAgreement(clientPub, BigInteger.TEN);
+		//System.out.println(key.toString());
+		//System.out.println(clientPub.getMessage());
+		
+		/*DHKeyPairGenerator keyGen = (DHKeyPairGenerator)input.readObject();
+		input.reset();
+		BigInteger q = (BigInteger)input.readObject();
+		input.reset();
+		AsymmetricKeyParameter clientPubKey = (AsymmetricKeyParameter)input.readObject();
+		AsymmetricCipherKeyPair keys = keyGen.generateKeyPair();*/
+		
+
 	}
 
 	public void run()
@@ -25,10 +104,17 @@ public class FileThread extends Thread
 		try
 		{
 			System.out.println("*** New connection from " + socket.getInetAddress() + ":" + socket.getPort() + "***");
-			final ObjectInputStream input = new ObjectInputStream(socket.getInputStream());
-			final ObjectOutputStream output = new ObjectOutputStream(socket.getOutputStream());
+			
 			Envelope response;
 
+
+
+			
+			
+
+			//AlgorithmParameterGenerator params = Algoritm.ParameterGenerator.getInstance("DH");
+			//params.init(256);
+			
 			do
 			{
 				Envelope e = (Envelope)input.readObject();
