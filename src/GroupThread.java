@@ -5,16 +5,74 @@ import java.lang.Thread;
 import java.net.Socket;
 import java.io.*;
 import java.util.*;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
+import org.bouncycastle.crypto.generators.DHParametersGenerator;
+import org.bouncycastle.crypto.params.DHParameters;
+import org.bouncycastle.crypto.params.DHKeyGenerationParameters;
+import org.bouncycastle.crypto.generators.DHKeyPairGenerator;
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair;
+import org.bouncycastle.crypto.params.AsymmetricKeyParameter;
+import java.util.Random;
+import java.io.IOException;
+import java.lang.ClassNotFoundException;
+import org.bouncycastle.asn1.x9.DHPublicKey;
+import org.bouncycastle.crypto.generators.*;
+import org.bouncycastle.crypto.params.*;
+import org.bouncycastle.crypto.params.DHKeyGenerationParameters;
+import org.bouncycastle.crypto.generators.DHKeyPairGenerator;
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair;
+import org.bouncycastle.crypto.params.AsymmetricKeyParameter;
+import org.bouncycastle.crypto.agreement.DHAgreement;
+import org.bouncycastle.crypto.agreement.DHBasicAgreement;
+import java.security.*;
+import java.math.*;
 
 public class GroupThread extends Thread
 {
 	private final Socket socket;
 	private GroupServer my_gs;
+	final ObjectInputStream input;
+	final ObjectOutputStream output;
 
-	public GroupThread(Socket _socket, GroupServer _gs)
+	public GroupThread(Socket _socket, GroupServer _gs) throws IOException, ClassNotFoundException
 	{
 		socket = _socket;
 		my_gs = _gs;
+		input = new ObjectInputStream(socket.getInputStream());
+		output = new ObjectOutputStream(socket.getOutputStream());
+		Envelope gMSG = (Envelope)input.readObject();
+		
+		Envelope pMSG = (Envelope)input.readObject();
+
+		Envelope clientPubMSG = (Envelope)input.readObject();
+
+		ArrayList<Object> nums = gMSG.getObjContents();
+		BigInteger g = (BigInteger)nums.get(0);
+		nums = pMSG.getObjContents();
+		BigInteger p =(BigInteger)nums.get(0);
+		nums = clientPubMSG.getObjContents();
+		BigInteger clientPubKey = (BigInteger)nums.get(0);
+		
+
+		DHParameters params = new DHParameters(p, g);
+		DHKeyGenerationParameters keyGenParams = new DHKeyGenerationParameters(new SecureRandom(), params);
+		DHKeyPairGenerator keyGen = new DHKeyPairGenerator();
+		keyGen.init(keyGenParams);
+		AsymmetricCipherKeyPair serverKeys = keyGen.generateKeyPair();
+		DHPublicKeyParameters publicKeyParam = (DHPublicKeyParameters)serverKeys.getPublic();
+		DHPrivateKeyParameters privateKeyParam = (DHPrivateKeyParameters)serverKeys.getPrivate();
+		BigInteger pubKey = publicKeyParam.getY();
+		Envelope serverPub = new Envelope("key");
+		serverPub.addObject(pubKey);
+		output.writeObject(serverPub);
+		output.flush();
+		DHPublicKeyParameters clientPub = new DHPublicKeyParameters(clientPubKey, params);
+		DHBasicAgreement keyAgree = new DHBasicAgreement();
+		keyAgree.init(serverKeys.getPrivate());
+		
+		BigInteger key = keyAgree.calculateAgreement(clientPub);
+		System.out.println(key);
+		output.reset();
 	}
 
 	public void run()
@@ -25,9 +83,7 @@ public class GroupThread extends Thread
 		{
 			//Announces connection and opens object streams
 			System.out.println("*** New connection from " + socket.getInetAddress() + ":" + socket.getPort() + "***");
-			final ObjectInputStream input = new ObjectInputStream(socket.getInputStream());
-			final ObjectOutputStream output = new ObjectOutputStream(socket.getOutputStream());
-
+			
 			do
 			{
 				Envelope message = (Envelope)input.readObject();

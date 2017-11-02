@@ -38,6 +38,7 @@ import org.bouncycastle.crypto.generators.DHKeyPairGenerator;
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair;
 import org.bouncycastle.crypto.params.AsymmetricKeyParameter;
 import org.bouncycastle.crypto.agreement.DHAgreement;
+import org.bouncycastle.crypto.agreement.DHBasicAgreement;
 
 
 
@@ -54,19 +55,18 @@ public class FileThread extends Thread
 		input = new ObjectInputStream(socket.getInputStream());
 		output = new ObjectOutputStream(socket.getOutputStream());
 		Envelope gMSG = (Envelope)input.readObject();
-		//input.reset();
-		//System.out.println(g.getMessage());
+		
 		Envelope pMSG = (Envelope)input.readObject();
-		//System.out.println(p.getMessage());
-		//input.reset();
+
 		Envelope clientPubMSG = (Envelope)input.readObject();
+
 		ArrayList<Object> nums = gMSG.getObjContents();
 		BigInteger g = (BigInteger)nums.get(0);
 		nums = pMSG.getObjContents();
 		BigInteger p =(BigInteger)nums.get(0);
 		nums = clientPubMSG.getObjContents();
 		BigInteger clientPubKey = (BigInteger)nums.get(0);
-		System.out.println(clientPubKey);
+		
 
 		DHParameters params = new DHParameters(p, g);
 		DHKeyGenerationParameters keyGenParams = new DHKeyGenerationParameters(new SecureRandom(), params);
@@ -81,19 +81,12 @@ public class FileThread extends Thread
 		output.writeObject(serverPub);
 		output.flush();
 		DHPublicKeyParameters clientPub = new DHPublicKeyParameters(clientPubKey, params);
-		DHAgreement keyAgree = new DHAgreement();
+		DHBasicAgreement keyAgree = new DHBasicAgreement();
 		keyAgree.init(serverKeys.getPrivate());
-		BigInteger msg = keyAgree.calculateMessage();
-		BigInteger key = keyAgree.calculateAgreement(clientPub, BigInteger.TEN);
-		//System.out.println(key.toString());
-		//System.out.println(clientPub.getMessage());
 		
-		/*DHKeyPairGenerator keyGen = (DHKeyPairGenerator)input.readObject();
-		input.reset();
-		BigInteger q = (BigInteger)input.readObject();
-		input.reset();
-		AsymmetricKeyParameter clientPubKey = (AsymmetricKeyParameter)input.readObject();
-		AsymmetricCipherKeyPair keys = keyGen.generateKeyPair();*/
+		BigInteger key = keyAgree.calculateAgreement(clientPub);
+		System.out.println(key);
+		output.reset();
 		
 
 	}
