@@ -71,7 +71,6 @@ public class GroupThread extends Thread
 		keyAgree.init(serverKeys.getPrivate());
 		
 		BigInteger key = keyAgree.calculateAgreement(clientPub);
-		System.out.println(key);
 		output.reset();
 	}
 

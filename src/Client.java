@@ -89,7 +89,6 @@ public abstract class Client {
 			keyAgree.init(clientKeys.getPrivate());
 			
 			BigInteger key = keyAgree.calculateAgreement(servPub);
-			System.out.println(key);
 			output.reset();
 			
 		}catch(Exception e){
