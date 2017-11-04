@@ -19,6 +19,8 @@ import java.io.ByteArrayInputStream;
 import java.math.*;
 import javax.crypto.*;
 import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
+
 import java.util.Random;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.crypto.generators.DHParametersGenerator;
@@ -48,6 +50,7 @@ public class FileThread extends Thread
 	private final Socket socket;
 	final ObjectInputStream input;
 	final ObjectOutputStream output;
+	BigInteger key;
 
 	public FileThread(Socket _socket) throws IOException, ClassNotFoundException
 	{
@@ -79,33 +82,27 @@ public class FileThread extends Thread
 		Envelope serverPub = new Envelope("key");
 		serverPub.addObject(pubKey);
 		output.writeObject(serverPub);
-		output.flush();
 		DHPublicKeyParameters clientPub = new DHPublicKeyParameters(clientPubKey, params);
 		DHBasicAgreement keyAgree = new DHBasicAgreement();
 		keyAgree.init(serverKeys.getPrivate());
 		
-		BigInteger key = keyAgree.calculateAgreement(clientPub);
+		key = keyAgree.calculateAgreement(clientPub);
+		System.out.println(key.bitLength());
 		output.reset();
+		
 		
 
 	}
 
 	public void run()
 	{
+		
 		boolean proceed = true;
 		try
 		{
 			System.out.println("*** New connection from " + socket.getInetAddress() + ":" + socket.getPort() + "***");
-			
+			Encrypt enc = new Encrypt(new SecretKeySpec(key.toByteArray(),"AES"));
 			Envelope response;
-
-
-
-			
-			
-
-			//AlgorithmParameterGenerator params = Algoritm.ParameterGenerator.getInstance("DH");
-			//params.init(256);
 			
 			do
 			{
@@ -117,7 +114,7 @@ public class FileThread extends Thread
 				{
 					List<String> list = new ArrayList<String>();
 
-					UserToken yourToken = (UserToken)e.getObjContents().get(0);
+					UserToken yourToken = extractToken(e, enc, 0);
 					List<String> groups = yourToken.getGroups(); //list of current groups user is a member of
 					FileList tmp = FileServer.fileList; //list of files on the server
 					for(ShareFile f :tmp.getFiles()) {
@@ -126,33 +123,42 @@ public class FileThread extends Thread
 							list.add(f.getPath());
 					}
 					response = new Envelope("OK");
-					response.addObject(list);
+					byte [] ls = enc.encryptAES(list.toString());
+					response.addObject(ls);
 					output.reset();
 					output.writeObject(response);
 				}
 				if(e.getMessage().equals("UPLOADF"))
 				{
-
+					//decrypt transmission here
+					
 					if(e.getObjContents().size() < 3)
 					{
 						response = new Envelope("FAIL-BADCONTENTS");
 					}
 					else
 					{
-						if(e.getObjContents().get(0) == null) {
+						
+						String path = enc.decryptAES(((byte [])e.getObjContents().get(0)));
+						
+						String grp = enc.decryptAES(((byte [])e.getObjContents().get(1)));
+						
+						String token = enc.decryptAES(((byte [])e.getObjContents().get(2)));
+						
+						if(path == null) {
 							response = new Envelope("FAIL-BADPATH");
 						}
-						if(e.getObjContents().get(1) == null) {
+						if(grp == null) {
 							response = new Envelope("FAIL-BADGROUP");
 						}
-						if(e.getObjContents().get(2) == null) {
+						if(token == null) {
 							response = new Envelope("FAIL-BADTOKEN");
 						}
 						else {
-							String remotePath = (String)e.getObjContents().get(0);
-							String group = (String)e.getObjContents().get(1);
-							UserToken yourToken = (UserToken)e.getObjContents().get(2); //Extract token
-
+							String remotePath = path;
+							String group = grp;
+							UserToken yourToken = extractToken(e, enc, 2); //Extract token
+					
 							if (FileServer.fileList.checkFile(remotePath)) {
 								System.out.printf("Error: file already exists at %s\n", remotePath);
 								response = new Envelope("FAIL-FILEEXISTS"); //Success
@@ -198,8 +204,8 @@ public class FileThread extends Thread
 				}
 				else if (e.getMessage().compareTo("DOWNLOADF")==0) {
 
-					String remotePath = (String)e.getObjContents().get(0);
-					Token t = (Token)e.getObjContents().get(1);
+					String remotePath = enc.decryptAES((byte [])e.getObjContents().get(0));
+					Token t = (Token)extractToken(e, enc, 1);
 					ShareFile sf = FileServer.fileList.getFile("/"+remotePath);
 					if (sf == null) {
 						System.out.printf("Error: File %s doesn't exist\n", remotePath);
@@ -244,10 +250,15 @@ public class FileThread extends Thread
 									System.out.println("Read error");
 
 								}
-
-
-								e.addObject(buf);
-								e.addObject(new Integer(n));
+								String toEnc = new String(buf, "UTF-8");
+								byte [] buffer = enc.encryptAES(toEnc);
+								
+								
+								byte [] byteN = enc.encryptAES((new Integer(n)).toString());
+								
+								e.addObject(buffer);
+								e.addObject(byteN);
+								//e.addObject(new Integer(n));
 
 								output.reset();
 								output.writeObject(e);
@@ -294,8 +305,8 @@ public class FileThread extends Thread
 				}
 				else if (e.getMessage().compareTo("DELETEF")==0) {
 
-					String remotePath = (String)e.getObjContents().get(0);
-					Token t = (Token)e.getObjContents().get(1);
+					String remotePath = enc.decryptAES((byte [])e.getObjContents().get(0));
+					Token t = (Token)extractToken(e, enc, 1);
 					ShareFile sf = FileServer.fileList.getFile("/"+remotePath);
 					if (sf == null) {
 						System.out.printf("Error: File %s doesn't exist\n", remotePath);
@@ -352,6 +363,20 @@ public class FileThread extends Thread
 			System.err.println("Error: " + e.getMessage());
 			e.printStackTrace(System.err);
 		}
+	}
+
+	private UserToken extractToken(Envelope e, Encrypt enc, int index){
+		String token = enc.decryptAES(((byte [])e.getObjContents().get(index)));
+		String [] spl = token.split(":|\\\n");
+		String [] grpss = spl[5].split(",|\\[|\\]|\\ ");
+		ArrayList<String> trial = new ArrayList<String>();
+		for(int i =0; i<grpss.length; i++){
+			if((i % 2) != 0)
+				trial.add(trial.size(), grpss[i]);
+		}
+		UserToken yourToken = (UserToken)new Token(spl[1], spl[3], trial);
+		return yourToken;
+
 	}
 
 }

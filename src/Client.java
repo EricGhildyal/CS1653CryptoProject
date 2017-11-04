@@ -34,6 +34,7 @@ public abstract class Client {
 	protected Socket sock;
 	protected ObjectOutputStream output;
 	protected ObjectInputStream input;
+	public BigInteger sKey;
 
 
 	/**
@@ -51,7 +52,7 @@ public abstract class Client {
 			Provider bcp = new BouncyCastleProvider();
 			DHParametersGenerator paramGen = new DHParametersGenerator();
 			SecureRandom secRand = new SecureRandom();
-			paramGen.init(256, 90, secRand);
+			paramGen.init(255, 90, secRand);
 			DHParameters params = paramGen.generateParameters();
 			BigInteger g = params.getG();
 			BigInteger p = params.getP();
@@ -74,7 +75,6 @@ public abstract class Client {
 			Envelope pubMSG = new Envelope("pubKey");
 			pubMSG.addObject(pubKey);
 			output.writeObject(pubMSG);
-			output.flush();
 			
 	
 			
@@ -88,9 +88,11 @@ public abstract class Client {
 			DHBasicAgreement keyAgree = new DHBasicAgreement();
 			keyAgree.init(clientKeys.getPrivate());
 			
-			BigInteger key = keyAgree.calculateAgreement(servPub);
+			sKey = keyAgree.calculateAgreement(servPub);
+			System.out.println(sKey.bitLength());
 			output.reset();
 			
+						
 		}catch(Exception e){
 			System.out.println("There was an error in connecting to the server: " + e);
 			return false;

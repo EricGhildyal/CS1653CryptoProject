@@ -65,17 +65,18 @@ public class GroupThread extends Thread
 		Envelope serverPub = new Envelope("key");
 		serverPub.addObject(pubKey);
 		output.writeObject(serverPub);
-		output.flush();
 		DHPublicKeyParameters clientPub = new DHPublicKeyParameters(clientPubKey, params);
 		DHBasicAgreement keyAgree = new DHBasicAgreement();
 		keyAgree.init(serverKeys.getPrivate());
 		
 		BigInteger key = keyAgree.calculateAgreement(clientPub);
 		output.reset();
+		input.skip(input.available());
 	}
 
 	public void run()
 	{
+		
 		boolean proceed = true;
 
 		try
@@ -96,6 +97,7 @@ public class GroupThread extends Thread
 					{
 						response = new Envelope("FAIL");
 						response.addObject(null);
+						output.reset();
 						output.writeObject(response);
 					}
 					else
@@ -105,6 +107,7 @@ public class GroupThread extends Thread
 						//Respond to the client. On error, the client will receive a null token
 						response = new Envelope("OK");
 						response.addObject(yourToken);
+						output.reset();
 						output.writeObject(response);
 					}
 				}

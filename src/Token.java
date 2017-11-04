@@ -59,4 +59,5 @@ public class Token implements UserToken, java.io.Serializable{
 	  						   + "Username:%s\n"
 	  						   + "Groups:%s\n", this.server, this.username, this.groups);
   }
+
 }

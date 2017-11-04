@@ -2,11 +2,16 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
 import java.lang.Integer;
+import javax.crypto.*;
+import javax.crypto.spec.SecretKeySpec;
+
 
 public class RunClient {
 	//group server ip/group server port/fileserver ip/file server port
+	
 	public static void main(String[] args) {
-		
+		SecretKeySpec fileServKey;
+		SecretKeySpec groupServKey;
 		GroupClient gcli = new GroupClient();
 		if(args.length >= 2){
 			if(args[0] != null && args[1] != null)
@@ -29,6 +34,8 @@ public class RunClient {
 		//Test connections, if one fails: exit
 		if(gcli.isConnected()) {
 			System.out.println("Group Server Connected!");
+			//byte [] byteGKey = gcli.key.toByteArray();
+			//groupServKey = new SecretKeySpec(byteGKey, "AES");
 		}else{
 			System.err.println("Failed to Connect to Group Server");
 			return;
@@ -36,6 +43,7 @@ public class RunClient {
 			
 		if(fcli.isConnected()) {
 			System.out.println("File Server Connected!");
+			
 		}else{
 			System.err.println("Failed to Connect to File Server");
 			return;
@@ -365,6 +373,7 @@ public class RunClient {
 			System.out.println("Please enter a valid group name: ");
 			group = input.nextLine();
 		}
+			
 		return fcli.upload(sourceFile, destFile, group, token);
 	}
 	
@@ -393,5 +402,6 @@ public class RunClient {
 		}
 		return fcli.delete(filename, token);
 	}
+	
 	
 }
