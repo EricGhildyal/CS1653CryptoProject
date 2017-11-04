@@ -1,5 +1,7 @@
 import javax.crypto.*;
 import javax.crypto.spec.SecretKeySpec;
+import java.util.ArrayList;
+import java.util.List;
 public class Encrypt{
     SecretKeySpec key;
     public Encrypt(SecretKeySpec key){
@@ -36,4 +38,31 @@ public class Encrypt{
 
         return ret;
     }
+
+    public UserToken extractToken(Envelope e, Encrypt enc, int index){
+		String token = enc.decryptAES(((byte [])e.getObjContents().get(index)));
+		String [] spl = token.split(":|\\\n");
+		String [] grpss = spl[5].split(",|\\[|\\]|\\ ");
+		ArrayList<String> trial = new ArrayList<String>();
+		for(int i =0; i<grpss.length; i++){
+			if((i % 2) != 0)
+				trial.add(trial.size(), grpss[i]);
+		}
+		UserToken yourToken = (UserToken)new Token(spl[1], spl[3], trial);
+		return yourToken;
+
+    }
+    
+    public List<String> extractList(Envelope e, Encrypt enc, int index){
+		String token = enc.decryptAES(((byte [])e.getObjContents().get(index)));
+		String [] spl = token.split(",|\\[|\\]|\\ ");
+		//String [] grpss = spl[5].split(",|\\[|\\]|\\ ");
+		List<String> trial = new ArrayList<String>();
+		for(int i =0; i<spl.length; i++){
+			if((i % 2) != 0)
+				trial.add(trial.size(), spl[i]);
+		}
+		
+		return trial;
+	}
 }

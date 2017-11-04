@@ -49,6 +49,7 @@ public abstract class Client {
 			this.sock = new Socket(server, port);
 			output = new ObjectOutputStream(this.sock.getOutputStream());  //Declare the output and input streams
 			input = new ObjectInputStream(this.sock.getInputStream());
+			//generate parameters
 			Provider bcp = new BouncyCastleProvider();
 			DHParametersGenerator paramGen = new DHParametersGenerator();
 			SecureRandom secRand = new SecureRandom();
@@ -56,7 +57,7 @@ public abstract class Client {
 			DHParameters params = paramGen.generateParameters();
 			BigInteger g = params.getG();
 			BigInteger p = params.getP();
-
+			//generate keys and send p, g, and public key to server
 			DHKeyGenerationParameters keyGenParams = new DHKeyGenerationParameters(secRand, params);
 			DHKeyPairGenerator keyGen = new DHKeyPairGenerator();
 			keyGen.init(keyGenParams);
@@ -79,7 +80,7 @@ public abstract class Client {
 	
 			
 
-
+			//get server public key and agree on a session key
 			Envelope servPubKey = (Envelope)input.readObject();
 			ArrayList<Object> pub = servPubKey.getObjContents();
 			BigInteger serverPub = (BigInteger)pub.get(0);

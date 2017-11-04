@@ -33,6 +33,7 @@ public class FileClient extends Client implements FileClientInterface {
 	    env.addObject(path);
 	    env.addObject(tok);
 	    try {
+			output.reset();
 			output.writeObject(env);
 		    env = (Envelope)input.readObject();
 
@@ -69,6 +70,7 @@ public class FileClient extends Client implements FileClientInterface {
 				byte [] tok = enc.encryptAES(token.toString());
 				env.addObject(srcF);
 				env.addObject(tok);
+				output.reset();
 				output.writeObject(env);
 
 				env = (Envelope)input.readObject();
@@ -86,6 +88,7 @@ public class FileClient extends Client implements FileClientInterface {
 						
 						// System.out.printf(".");
 						env = new Envelope("DOWNLOADF"); //Success
+						output.reset();
 						output.writeObject(env);
 						env = (Envelope)input.readObject();
 					}
@@ -100,6 +103,7 @@ public class FileClient extends Client implements FileClientInterface {
 						fos.close();
 						System.out.printf("\nTransfer successful file %s\n", sourceFile);
 						env = new Envelope("OK"); //Success
+						output.reset();
 						output.writeObject(env);
 				}
 				else {
@@ -138,6 +142,7 @@ public class FileClient extends Client implements FileClientInterface {
 			 message = new Envelope("LFILES");
 			 byte [] tok = enc.encryptAES(token.toString());
 			 message.addObject(tok); //Add requester's token
+			 output.reset();
 			 output.writeObject(message);
 
 			 e = (Envelope)input.readObject();
@@ -146,8 +151,7 @@ public class FileClient extends Client implements FileClientInterface {
 			 if(e.getMessage().equals("OK"))
 			 {
 				String rec = enc.decryptAES((byte [])e.getObjContents().get(0));
-				System.out.println(rec);
-				List<String> ret = extractList(e,enc, 0);
+				List<String> ret = enc.extractList(e,enc, 0);
 				return (List<String>)ret; //This cast creates compiler warnings. Sorry.
 			 }
 
@@ -161,18 +165,7 @@ public class FileClient extends Client implements FileClientInterface {
 				return null;
 			}
 	}
-	private List<String> extractList(Envelope e, Encrypt enc, int index){
-		String token = enc.decryptAES(((byte [])e.getObjContents().get(index)));
-		String [] spl = token.split(",|\\[|\\]|\\ ");
-		//String [] grpss = spl[5].split(",|\\[|\\]|\\ ");
-		List<String> trial = new ArrayList<String>();
-		for(int i =0; i<spl.length; i++){
-			if((i % 2) != 0)
-				trial.add(trial.size(), spl[i]);
-		}
-		
-		return trial;
-	}
+	
 
 	public boolean upload(String sourceFile, String destFile, String group,
 			UserToken token) {
@@ -198,6 +191,7 @@ public class FileClient extends Client implements FileClientInterface {
 			 message.addObject(destinationFile);
 			 message.addObject(grpName);
 			 message.addObject(tok);
+			 output.reset();
 			 output.writeObject(message);
 
 
@@ -236,7 +230,7 @@ public class FileClient extends Client implements FileClientInterface {
 
 					message.addObject(buf);
 					message.addObject(new Integer(n));
-
+					output.reset();
 					output.writeObject(message);
 
 
@@ -251,6 +245,7 @@ public class FileClient extends Client implements FileClientInterface {
 			 {
 
 				message = new Envelope("EOF");
+				output.reset();
 				output.writeObject(message);
 
 				env = (Envelope)input.readObject();

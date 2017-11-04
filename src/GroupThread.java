@@ -26,6 +26,7 @@ import org.bouncycastle.crypto.agreement.DHAgreement;
 import org.bouncycastle.crypto.agreement.DHBasicAgreement;
 import java.security.*;
 import java.math.*;
+import javax.crypto.spec.SecretKeySpec;
 
 public class GroupThread extends Thread
 {
@@ -33,6 +34,7 @@ public class GroupThread extends Thread
 	private GroupServer my_gs;
 	final ObjectInputStream input;
 	final ObjectOutputStream output;
+	BigInteger key;
 
 	public GroupThread(Socket _socket, GroupServer _gs) throws IOException, ClassNotFoundException
 	{
@@ -40,6 +42,7 @@ public class GroupThread extends Thread
 		my_gs = _gs;
 		input = new ObjectInputStream(socket.getInputStream());
 		output = new ObjectOutputStream(socket.getOutputStream());
+		//get the p and g used to create from params from client
 		Envelope gMSG = (Envelope)input.readObject();
 		
 		Envelope pMSG = (Envelope)input.readObject();
@@ -53,7 +56,7 @@ public class GroupThread extends Thread
 		nums = clientPubMSG.getObjContents();
 		BigInteger clientPubKey = (BigInteger)nums.get(0);
 		
-
+		//create the params and make keys. send the public to client
 		DHParameters params = new DHParameters(p, g);
 		DHKeyGenerationParameters keyGenParams = new DHKeyGenerationParameters(new SecureRandom(), params);
 		DHKeyPairGenerator keyGen = new DHKeyPairGenerator();
@@ -64,12 +67,15 @@ public class GroupThread extends Thread
 		BigInteger pubKey = publicKeyParam.getY();
 		Envelope serverPub = new Envelope("key");
 		serverPub.addObject(pubKey);
+		output.reset();
 		output.writeObject(serverPub);
 		DHPublicKeyParameters clientPub = new DHPublicKeyParameters(clientPubKey, params);
+
+		//agree on a session key
 		DHBasicAgreement keyAgree = new DHBasicAgreement();
 		keyAgree.init(serverKeys.getPrivate());
 		
-		BigInteger key = keyAgree.calculateAgreement(clientPub);
+		key = keyAgree.calculateAgreement(clientPub);
 		output.reset();
 		input.skip(input.available());
 	}
@@ -83,7 +89,7 @@ public class GroupThread extends Thread
 		{
 			//Announces connection and opens object streams
 			System.out.println("*** New connection from " + socket.getInetAddress() + ":" + socket.getPort() + "***");
-			
+			Encrypt enc = new Encrypt(new SecretKeySpec(key.toByteArray(),"AES"));
 			do
 			{
 				Envelope message = (Envelope)input.readObject();
@@ -92,7 +98,7 @@ public class GroupThread extends Thread
 
 				if(message.getMessage().equals("GET"))//Client wants a token
 				{
-					String username = (String)message.getObjContents().get(0); //Get the username
+					String username = enc.decryptAES((byte[])message.getObjContents().get(0)); //Get the username
 					if(username == null)
 					{
 						response = new Envelope("FAIL");
@@ -106,7 +112,13 @@ public class GroupThread extends Thread
 
 						//Respond to the client. On error, the client will receive a null token
 						response = new Envelope("OK");
-						response.addObject(yourToken);
+						byte []tok;
+						if(yourToken != null){
+							tok = enc.encryptAES(yourToken.toString());
+							response.addObject(tok);
+						}
+						else
+							response.addObject(yourToken);
 						output.reset();
 						output.writeObject(response);
 					}
@@ -125,8 +137,8 @@ public class GroupThread extends Thread
 						{
 							if(message.getObjContents().get(1) != null)
 							{
-								String username = (String)message.getObjContents().get(0); //Extract the username
-								UserToken yourToken = (UserToken)message.getObjContents().get(1); //Extract the token
+								String username = enc.decryptAES((byte [])message.getObjContents().get(0)); //Extract the username
+								UserToken yourToken = enc.extractToken(message, enc, 1); //Extract the token
 
 								if(createUser(username, yourToken))
 								{
@@ -153,8 +165,8 @@ public class GroupThread extends Thread
 						{
 							if(message.getObjContents().get(1) != null)
 							{
-								String username = (String)message.getObjContents().get(0); //Extract the username
-								UserToken yourToken = (UserToken)message.getObjContents().get(1); //Extract the token
+								String username = enc.decryptAES((byte [])message.getObjContents().get(0)); //Extract the username
+								UserToken yourToken = enc.extractToken(message, enc, 1); //Extract the token
 
 								if(deleteUser(username, yourToken))
 								{
@@ -180,8 +192,8 @@ public class GroupThread extends Thread
 						{
 							if(message.getObjContents().get(1) != null) //get token
 							{
-								String groupName = (String)message.getObjContents().get(0); //Extract the username
-								UserToken yourToken = (UserToken)message.getObjContents().get(1); //Extract the token
+								String groupName = enc.decryptAES((byte [])message.getObjContents().get(0)); //Extract the username
+								UserToken yourToken = enc.extractToken(message, enc, 1); //Extract the token
 								System.out.println("Creating group");
 								if(createGroup(groupName, yourToken)){
 									System.out.println("Successful");
@@ -208,8 +220,8 @@ public class GroupThread extends Thread
 						{
 							if(message.getObjContents().get(1) != null) //get token
 							{
-								String groupName = (String)message.getObjContents().get(0); //Extract the groupName
-								UserToken yourToken = (UserToken)message.getObjContents().get(1); //Extract the token
+								String groupName = enc.decryptAES((byte [])message.getObjContents().get(0)); //Extract the username
+								UserToken yourToken = enc.extractToken(message, enc, 1); //Extract the token
 
 								if(deleteGroup(groupName, yourToken)){
 									response = new Envelope("OK");
@@ -234,10 +246,12 @@ public class GroupThread extends Thread
 						{
 							if(message.getObjContents().get(1) != null) //get token
 							{
-								String groupName = (String)message.getObjContents().get(0); //Extract the groupName
-								UserToken yourToken = (UserToken)message.getObjContents().get(1); //Extract the token
+
+								String groupName = enc.decryptAES((byte[])message.getObjContents().get(0)); //Extract the groupName
+								UserToken yourToken = enc.extractToken(message, enc, 1); //Extract the token
 								response = new Envelope("OK");
-								response.addObject(listMembers(groupName, yourToken));
+								byte [] mems = enc.encryptAES(listMembers(groupName, yourToken).toString());
+								response.addObject(mems);
 							}
 						}
 					}
@@ -260,9 +274,9 @@ public class GroupThread extends Thread
 							{
 								if(message.getObjContents().get(2) != null) //get token
 								{
-									String username = (String)message.getObjContents().get(0); //Extract the username
-									String groupName = (String)message.getObjContents().get(1); //Extract the groupname
-									UserToken yourToken = (UserToken)message.getObjContents().get(2); //Extract the token
+									String username = enc.decryptAES((byte [])message.getObjContents().get(0)); //Extract the username
+									String groupName = enc.decryptAES((byte [])message.getObjContents().get(1)); //Extract the username
+									UserToken yourToken = enc.extractToken(message, enc, 2); //Extract the token
 	
 									if(addUserToGroup(username, groupName, yourToken)){
 										response = new Envelope("OK");
@@ -290,9 +304,9 @@ public class GroupThread extends Thread
 							{
 								if(message.getObjContents().get(2) != null) //get token
 								{
-									String username = (String)message.getObjContents().get(0); //Extract the username
-									String groupName = (String)message.getObjContents().get(1);//Extract the groupname
-									UserToken yourToken = (UserToken)message.getObjContents().get(2); //Extract the token
+									String username = enc.decryptAES((byte [])message.getObjContents().get(0)); //Extract the username
+									String groupName = enc.decryptAES((byte [])message.getObjContents().get(1)); //Extract the username
+									UserToken yourToken = enc.extractToken(message, enc, 2); //Extract the token
 	
 									if(removeUserFromGroup(username, groupName, yourToken)){
 										response = new Envelope("OK");
@@ -418,8 +432,10 @@ public class GroupThread extends Thread
 	private UserToken createToken(String username)
 	{
 		//Check that user exists
+		System.out.println("In createTOken");
 		if(my_gs.userList.checkUser(username))
 		{
+			System.out.println("nameExists");
 			//Issue a new token with server's name, user's name, and user's groups
 			UserToken yourToken = new Token(my_gs.name, username, my_gs.userList.getUserGroups(username));
 			System.out.println(yourToken);
@@ -427,6 +443,7 @@ public class GroupThread extends Thread
 		}
 		else
 		{
+			System.out.println("Name doesnt exists");
 			return null;
 		}
 	}

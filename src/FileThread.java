@@ -57,6 +57,7 @@ public class FileThread extends Thread
 		socket = _socket;
 		input = new ObjectInputStream(socket.getInputStream());
 		output = new ObjectOutputStream(socket.getOutputStream());
+		//get the g and p parameters from client
 		Envelope gMSG = (Envelope)input.readObject();
 		
 		Envelope pMSG = (Envelope)input.readObject();
@@ -70,7 +71,7 @@ public class FileThread extends Thread
 		nums = clientPubMSG.getObjContents();
 		BigInteger clientPubKey = (BigInteger)nums.get(0);
 		
-
+		//define the parameters based off the p and g, generate keys and send the public to client
 		DHParameters params = new DHParameters(p, g);
 		DHKeyGenerationParameters keyGenParams = new DHKeyGenerationParameters(new SecureRandom(), params);
 		DHKeyPairGenerator keyGen = new DHKeyPairGenerator();
@@ -81,8 +82,11 @@ public class FileThread extends Thread
 		BigInteger pubKey = publicKeyParam.getY();
 		Envelope serverPub = new Envelope("key");
 		serverPub.addObject(pubKey);
+		output.reset();
 		output.writeObject(serverPub);
 		DHPublicKeyParameters clientPub = new DHPublicKeyParameters(clientPubKey, params);
+
+		//create the agreement to make the session key
 		DHBasicAgreement keyAgree = new DHBasicAgreement();
 		keyAgree.init(serverKeys.getPrivate());
 		
@@ -114,7 +118,7 @@ public class FileThread extends Thread
 				{
 					List<String> list = new ArrayList<String>();
 
-					UserToken yourToken = extractToken(e, enc, 0);
+					UserToken yourToken = enc.extractToken(e, enc, 0);
 					List<String> groups = yourToken.getGroups(); //list of current groups user is a member of
 					FileList tmp = FileServer.fileList; //list of files on the server
 					for(ShareFile f :tmp.getFiles()) {
@@ -157,7 +161,7 @@ public class FileThread extends Thread
 						else {
 							String remotePath = path;
 							String group = grp;
-							UserToken yourToken = extractToken(e, enc, 2); //Extract token
+							UserToken yourToken = enc.extractToken(e, enc, 2); //Extract token
 					
 							if (FileServer.fileList.checkFile(remotePath)) {
 								System.out.printf("Error: file already exists at %s\n", remotePath);
@@ -205,7 +209,7 @@ public class FileThread extends Thread
 				else if (e.getMessage().compareTo("DOWNLOADF")==0) {
 
 					String remotePath = enc.decryptAES((byte [])e.getObjContents().get(0));
-					Token t = (Token)extractToken(e, enc, 1);
+					Token t = (Token)enc.extractToken(e, enc, 1);
 					ShareFile sf = FileServer.fileList.getFile("/"+remotePath);
 					if (sf == null) {
 						System.out.printf("Error: File %s doesn't exist\n", remotePath);
@@ -306,7 +310,7 @@ public class FileThread extends Thread
 				else if (e.getMessage().compareTo("DELETEF")==0) {
 
 					String remotePath = enc.decryptAES((byte [])e.getObjContents().get(0));
-					Token t = (Token)extractToken(e, enc, 1);
+					Token t = (Token)enc.extractToken(e, enc, 1);
 					ShareFile sf = FileServer.fileList.getFile("/"+remotePath);
 					if (sf == null) {
 						System.out.printf("Error: File %s doesn't exist\n", remotePath);
@@ -365,18 +369,7 @@ public class FileThread extends Thread
 		}
 	}
 
-	private UserToken extractToken(Envelope e, Encrypt enc, int index){
-		String token = enc.decryptAES(((byte [])e.getObjContents().get(index)));
-		String [] spl = token.split(":|\\\n");
-		String [] grpss = spl[5].split(",|\\[|\\]|\\ ");
-		ArrayList<String> trial = new ArrayList<String>();
-		for(int i =0; i<grpss.length; i++){
-			if((i % 2) != 0)
-				trial.add(trial.size(), grpss[i]);
-		}
-		UserToken yourToken = (UserToken)new Token(spl[1], spl[3], trial);
-		return yourToken;
-
-	}
+	
+	
 
 }
