@@ -2,6 +2,9 @@ import javax.crypto.*;
 import javax.crypto.spec.SecretKeySpec;
 import java.util.ArrayList;
 import java.util.List;
+import org.bouncycastle.crypto.digests.SHA256Digest;
+import org.apache.commons.codec.binary.Base64;
+
 public class Encrypt{
     SecretKeySpec key;
     public Encrypt(SecretKeySpec key){
@@ -13,7 +16,7 @@ public class Encrypt{
     public byte[] encryptAES(String toEncrypt){
         byte [] ret = null;
         try{
-            
+
             Cipher encCipher = Cipher.getInstance("AES");
             encCipher.init(Cipher.ENCRYPT_MODE, key);
             ret = encCipher.doFinal(toEncrypt.getBytes());
@@ -29,7 +32,7 @@ public class Encrypt{
         try{
             Cipher decCipher = Cipher.getInstance("AES");
             decCipher.init(Cipher.DECRYPT_MODE, key);
-            
+
             ret = new String(decCipher.doFinal(toDecrypt));
         }
         catch(Exception e){
@@ -52,7 +55,7 @@ public class Encrypt{
 		return yourToken;
 
     }
-    
+
     public List<String> extractList(Envelope e, Encrypt enc, int index){
 		String token = enc.decryptAES(((byte [])e.getObjContents().get(index)));
 		String [] spl = token.split(",|\\[|\\]|\\ ");
@@ -62,7 +65,16 @@ public class Encrypt{
 			if((i % 2) != 0)
 				trial.add(trial.size(), spl[i]);
 		}
-		
+
 		return trial;
 	}
+
+  public String sha256(String s){
+    SHA256Digest sha = new SHA256Digest();
+    sha.update(s.getBytes(), 0, s.getBytes().length);
+    byte[] out = new byte[32];
+    sha.doFinal(out, 0);
+    return Base64.encodeBase64String(out);
+  }
+
 }

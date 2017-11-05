@@ -5,7 +5,7 @@ import java.math.BigInteger;
 import java.security.*;
 import java.util.ArrayList;
 import org.bouncycastle.crypto.generators.*;
-import org.bouncycastle.crypto.params.*;	
+import org.bouncycastle.crypto.params.*;
 import org.bouncycastle.crypto.KeyGenerationParameters;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.crypto.generators.DHParametersGenerator;
@@ -45,7 +45,7 @@ public abstract class Client {
 	 * @return Whether or not the connection was sucessful or not
 	 */
 	public boolean connect(final String server, final int port){
-		try {	
+		try {
 			this.sock = new Socket(server, port);
 			output = new ObjectOutputStream(this.sock.getOutputStream());  //Declare the output and input streams
 			input = new ObjectInputStream(this.sock.getInputStream());
@@ -68,32 +68,31 @@ public abstract class Client {
 			Envelope gMSG = new Envelope("g");
 			gMSG.addObject(g);
 			output.writeObject(gMSG);
-			
+
 			Envelope pMSG = new Envelope("p");
 			pMSG.addObject(p);
 			output.writeObject(pMSG);
-			
+
 			Envelope pubMSG = new Envelope("pubKey");
 			pubMSG.addObject(pubKey);
 			output.writeObject(pubMSG);
-			
-	
-			
+
+
+
 
 			//get server public key and agree on a session key
 			Envelope servPubKey = (Envelope)input.readObject();
 			ArrayList<Object> pub = servPubKey.getObjContents();
 			BigInteger serverPub = (BigInteger)pub.get(0);
-			
+
 			DHPublicKeyParameters servPub = new DHPublicKeyParameters(serverPub, params);
 			DHBasicAgreement keyAgree = new DHBasicAgreement();
 			keyAgree.init(clientKeys.getPrivate());
-			
+
 			sKey = keyAgree.calculateAgreement(servPub);
-			System.out.println(sKey.bitLength());
 			output.reset();
-			
-						
+
+
 		}catch(Exception e){
 			System.out.println("There was an error in connecting to the server: " + e);
 			return false;

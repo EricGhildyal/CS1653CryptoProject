@@ -14,31 +14,33 @@ public class GroupClient extends Client implements GroupClientInterface {
 		enc = new Encrypt(new SecretKeySpec(this.sKey.toByteArray(), "AES"));
 		return ret;
 	}
-	public UserToken getToken(String username)
+	public UserToken getToken(String username, String password)
 	 {
 		try
 		{
 			UserToken token = null;
 			Envelope message = null, response = null;
-		 		 	
+
 			//Tell the server to return a token.
 			message = new Envelope("GET");
 			byte [] usrName = enc.encryptAES(username);
+			byte [] pass = enc.encryptAES(password);
 			message.addObject(usrName); //Add user name string
+			message.addObject(pass); //Add password
 			output.reset();
 			output.writeObject(message);
-		
+
 			//Get the response from the server
 			response = (Envelope)input.readObject();
 
 			//Successful response
 			if(response.getMessage().equals("OK"))
 			{
-				//If there is a token in the Envelope, return it 
+				//If there is a token in the Envelope, return it
 
 				ArrayList<Object> temp = null;
 				temp = response.getObjContents();
-				
+
 				if(temp.size() == 1)
 				{
 					token = enc.extractToken(response, enc, 0);
@@ -46,7 +48,7 @@ public class GroupClient extends Client implements GroupClientInterface {
 				}
 			}
 
-			
+
 			return null;
 		}
 		catch(NullPointerException e){
@@ -58,10 +60,10 @@ public class GroupClient extends Client implements GroupClientInterface {
 			e.printStackTrace(System.err);
 			return null;
 		}
-		
+
 	 }
-	 
-	 public boolean createUser(String username, UserToken token)
+
+	 public boolean createUser(String username, String password, UserToken token)
 	 {
 		 try
 			{
@@ -69,19 +71,20 @@ public class GroupClient extends Client implements GroupClientInterface {
 				//Tell the server to create a user
 				message = new Envelope("CUSER");
 				message.addObject(enc.encryptAES(username)); //Add user name string
+				message.addObject(enc.encryptAES(password)); //Add password string
 				message.addObject(enc.encryptAES(token.toString())); //Add the requester's token
 				output.reset();
 				output.writeObject(message);
-			
+
 				response = (Envelope)input.readObject();
-				
+
 				//If server indicates success, return true
 				if(response.getMessage().equals("OK"))
 				{
 					output.reset();
 					return true;
 				}
-				
+
 				return false;
 			}
 			catch(Exception e)
@@ -91,29 +94,29 @@ public class GroupClient extends Client implements GroupClientInterface {
 				return false;
 			}
 	 }
-	 
+
 	 public boolean deleteUser(String username, UserToken token)
 	 {
 		 try
 			{
 				Envelope message = null, response = null;
-			 
+
 				//Tell the server to delete a user
 				message = new Envelope("DUSER");
 				message.addObject(enc.encryptAES(username)); //Add user name
 				message.addObject(enc.encryptAES(token.toString()));  //Add requester's token
 				output.reset();
 				output.writeObject(message);
-			
+
 				response = (Envelope)input.readObject();
-				
+
 				//If server indicates success, return true
 				if(response.getMessage().equals("OK"))
 				{
 					output.reset();
 					return true;
 				}
-				
+
 				return false;
 			}
 			catch(Exception e)
@@ -123,7 +126,7 @@ public class GroupClient extends Client implements GroupClientInterface {
 				return false;
 			}
 	 }
-	 
+
 	 public boolean createGroup(String groupname, UserToken token)
 	 {
 		 try
@@ -134,17 +137,17 @@ public class GroupClient extends Client implements GroupClientInterface {
 				message.addObject(enc.encryptAES(groupname)); //Add the group name string
 				message.addObject(enc.encryptAES(token.toString())); //Add the requester's token
 				output.reset();
-				output.writeObject(message); 
-			
+				output.writeObject(message);
+
 				response = (Envelope)input.readObject();
-				
+
 				//If server indicates success, return true
 				if(response.getMessage().equals("OK"))
 				{
 					output.reset();
 					return true;
 				}
-				
+
 				return false;
 			}
 			catch(Exception e)
@@ -154,7 +157,7 @@ public class GroupClient extends Client implements GroupClientInterface {
 				return false;
 			}
 	 }
-	 
+
 	 public boolean deleteGroup(String groupname, UserToken token)
 	 {
 		 try
@@ -165,8 +168,8 @@ public class GroupClient extends Client implements GroupClientInterface {
 				message.addObject(enc.encryptAES(groupname)); //Add the group name string
 				message.addObject(enc.encryptAES(token.toString())); //Add the requester's token
 				output.reset();
-				output.writeObject(message); 
-			
+				output.writeObject(message);
+
 				response = (Envelope)input.readObject();
 				//If server indicates success, return true
 				if(response.getMessage().equals("OK"))
@@ -174,7 +177,7 @@ public class GroupClient extends Client implements GroupClientInterface {
 					output.reset();
 					return true;
 				}
-				
+
 				return false;
 			}
 			catch(Exception e)
@@ -184,7 +187,7 @@ public class GroupClient extends Client implements GroupClientInterface {
 				return false;
 			}
 	 }
-	 
+
 	 @SuppressWarnings("unchecked")
 	public List<String> listMembers(String group, UserToken token)
 	 {
@@ -198,20 +201,20 @@ public class GroupClient extends Client implements GroupClientInterface {
 			 message.addObject(grp); //Add group name string
 			 message.addObject(tok); //Add requester's token
 			 output.reset();
-			 output.writeObject(message); 
-			 
+			 output.writeObject(message);
+
 			 response = (Envelope)input.readObject();
-			 
+
 			 //If server indicates success, return the member list
 			 if(response.getMessage().equals("OK"))
-			 { 
+			 {
 				 output.reset();
 				return enc.extractList(response, enc, 0);
 				//return (List<String>)response.getObjContents().get(0); //This cast creates compiler warnings. Sorry.
 			 }
-				
+
 			 return null;
-			 
+
 		 }
 		 catch(Exception e)
 			{
@@ -220,7 +223,7 @@ public class GroupClient extends Client implements GroupClientInterface {
 				return null;
 			}
 	 }
-	 
+
 	 public boolean addUserToGroup(String username, String groupname, UserToken token)
 	 {
 		 try
@@ -232,8 +235,8 @@ public class GroupClient extends Client implements GroupClientInterface {
 				message.addObject(enc.encryptAES(groupname)); //Add the group name string
 				message.addObject(enc.encryptAES(token.toString())); //Add the requester's token
 				output.reset();
-				output.writeObject(message); 
-			
+				output.writeObject(message);
+
 				response = (Envelope)input.readObject();
 				//If server indicates success, return true
 				if(response.getMessage().equals("OK"))
@@ -241,7 +244,7 @@ public class GroupClient extends Client implements GroupClientInterface {
 					output.reset();
 					return true;
 				}
-				
+
 				return false;
 			}
 			catch(Exception e)
@@ -251,7 +254,7 @@ public class GroupClient extends Client implements GroupClientInterface {
 				return false;
 			}
 	 }
-	 
+
 	 public boolean deleteUserFromGroup(String username, String groupname, UserToken token)
 	 {
 		 try
@@ -264,7 +267,7 @@ public class GroupClient extends Client implements GroupClientInterface {
 				message.addObject(enc.encryptAES(token.toString())); //Add the requester's token
 				output.reset();
 				output.writeObject(message);
-			
+
 				response = (Envelope)input.readObject();
 				//If server indicates success, return true
 				if(response.getMessage().equals("OK"))
@@ -272,7 +275,7 @@ public class GroupClient extends Client implements GroupClientInterface {
 					output.reset();
 					return true;
 				}
-				
+
 				return false;
 			}
 			catch(Exception e)

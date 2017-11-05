@@ -59,7 +59,7 @@ public class FileThread extends Thread
 		output = new ObjectOutputStream(socket.getOutputStream());
 		//get the g and p parameters from client
 		Envelope gMSG = (Envelope)input.readObject();
-		
+
 		Envelope pMSG = (Envelope)input.readObject();
 
 		Envelope clientPubMSG = (Envelope)input.readObject();
@@ -70,7 +70,7 @@ public class FileThread extends Thread
 		BigInteger p =(BigInteger)nums.get(0);
 		nums = clientPubMSG.getObjContents();
 		BigInteger clientPubKey = (BigInteger)nums.get(0);
-		
+
 		//define the parameters based off the p and g, generate keys and send the public to client
 		DHParameters params = new DHParameters(p, g);
 		DHKeyGenerationParameters keyGenParams = new DHKeyGenerationParameters(new SecureRandom(), params);
@@ -89,25 +89,24 @@ public class FileThread extends Thread
 		//create the agreement to make the session key
 		DHBasicAgreement keyAgree = new DHBasicAgreement();
 		keyAgree.init(serverKeys.getPrivate());
-		
+
 		key = keyAgree.calculateAgreement(clientPub);
-		System.out.println(key.bitLength());
 		output.reset();
-		
-		
+
+
 
 	}
 
 	public void run()
 	{
-		
+
 		boolean proceed = true;
 		try
 		{
 			System.out.println("*** New connection from " + socket.getInetAddress() + ":" + socket.getPort() + "***");
 			Encrypt enc = new Encrypt(new SecretKeySpec(key.toByteArray(),"AES"));
 			Envelope response;
-			
+
 			do
 			{
 				Envelope e = (Envelope)input.readObject();
@@ -135,20 +134,20 @@ public class FileThread extends Thread
 				if(e.getMessage().equals("UPLOADF"))
 				{
 					//decrypt transmission here
-					
+
 					if(e.getObjContents().size() < 3)
 					{
 						response = new Envelope("FAIL-BADCONTENTS");
 					}
 					else
 					{
-						
+
 						String path = enc.decryptAES(((byte [])e.getObjContents().get(0)));
-						
+
 						String grp = enc.decryptAES(((byte [])e.getObjContents().get(1)));
-						
+
 						String token = enc.decryptAES(((byte [])e.getObjContents().get(2)));
-						
+
 						if(path == null) {
 							response = new Envelope("FAIL-BADPATH");
 						}
@@ -162,7 +161,7 @@ public class FileThread extends Thread
 							String remotePath = path;
 							String group = grp;
 							UserToken yourToken = enc.extractToken(e, enc, 2); //Extract token
-					
+
 							if (FileServer.fileList.checkFile(remotePath)) {
 								System.out.printf("Error: file already exists at %s\n", remotePath);
 								response = new Envelope("FAIL-FILEEXISTS"); //Success
@@ -256,10 +255,10 @@ public class FileThread extends Thread
 								}
 								String toEnc = new String(buf, "UTF-8");
 								byte [] buffer = enc.encryptAES(toEnc);
-								
-								
+
+
 								byte [] byteN = enc.encryptAES((new Integer(n)).toString());
-								
+
 								e.addObject(buffer);
 								e.addObject(byteN);
 								//e.addObject(new Integer(n));
@@ -369,7 +368,7 @@ public class FileThread extends Thread
 		}
 	}
 
-	
-	
+
+
 
 }
