@@ -57,6 +57,7 @@ public abstract class Client {
 			DHParameters params = paramGen.generateParameters();
 			BigInteger g = params.getG();
 			BigInteger p = params.getP();
+			
 			//generate keys and send p, g, and public key to server
 			DHKeyGenerationParameters keyGenParams = new DHKeyGenerationParameters(secRand, params);
 			DHKeyPairGenerator keyGen = new DHKeyPairGenerator();
