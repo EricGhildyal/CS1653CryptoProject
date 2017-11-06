@@ -71,8 +71,8 @@ public class AESAndHash{
         return ret;
     }
 
-    public UserToken extractToken(Envelope e, AESAndHash enc, int index){
-		String token = enc.decryptAES(((byte [])e.getObjContents().get(index)));
+    public UserToken extractToken(Envelope e, int index){
+		String token = this.decryptAES(((byte [])e.getObjContents().get(index)));
 		String [] spl = token.split(":|\\\n");
 		String [] grpss = spl[5].split(",|\\[|\\]|\\ ");
 		ArrayList<String> trial = new ArrayList<String>();
@@ -85,8 +85,8 @@ public class AESAndHash{
 
     }
 
-    public List<String> extractList(Envelope e, AESAndHash enc, int index){
-		String token = enc.decryptAES(((byte [])e.getObjContents().get(index)));
+    public List<String> extractList(Envelope e, int index){
+		String token = this.decryptAES(((byte [])e.getObjContents().get(index)));
 		String [] spl = token.split(",|\\[|\\]|\\ ");
 		//String [] grpss = spl[5].split(",|\\[|\\]|\\ ");
 		List<String> trial = new ArrayList<String>();

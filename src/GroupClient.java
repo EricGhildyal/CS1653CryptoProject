@@ -47,7 +47,7 @@ public class GroupClient extends Client implements GroupClientInterface {
 
 				if(temp.size() == 2)
 				{
-					token = enc.extractToken(response, enc, 0);
+					token = enc.extractToken(response, 0);
 					//TODO this object type probably needs to be change once encrypted with server key
 					hashedToken = (byte[])response.getObjContents().get(1);
 
@@ -222,7 +222,7 @@ public class GroupClient extends Client implements GroupClientInterface {
 			 if(response.getMessage().equals("OK"))
 			 {
 				 output.reset();
-				return enc.extractList(response, enc, 0);
+				return enc.extractList(response, 0);
 				//return (List<String>)response.getObjContents().get(0); //This cast creates compiler warnings. Sorry.
 			 }
 

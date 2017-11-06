@@ -117,7 +117,7 @@ public class FileThread extends Thread
 				{
 					List<String> list = new ArrayList<String>();
 
-					UserToken yourToken = enc.extractToken(e, enc, 0);
+					UserToken yourToken = enc.extractToken(e, 0);
 					byte[] hashedToken = enc.decryptAESBytes((byte [])e.getObjContents().get(1)); //Extract signed token hash
 					//TODO check token
 					List<String> groups = yourToken.getGroups(); //list of current groups user is a member of
@@ -163,7 +163,7 @@ public class FileThread extends Thread
 						else {
 							String remotePath = path;
 							String group = grp;
-							UserToken yourToken = enc.extractToken(e, enc, 2); //Extract token
+							UserToken yourToken = enc.extractToken(e, 2); //Extract token
 							byte[] hashedToken = enc.decryptAESBytes((byte [])e.getObjContents().get(3)); //Extract signed token hash
 							//TODO check token
 
@@ -214,7 +214,7 @@ public class FileThread extends Thread
 				else if (e.getMessage().compareTo("DOWNLOADF")==0) {
 
 					String remotePath = enc.decryptAES((byte [])e.getObjContents().get(0));
-					Token t = (Token)enc.extractToken(e, enc, 1);
+					Token t = (Token)enc.extractToken(e, 1);
 					byte[] hashedToken = enc.decryptAESBytes((byte [])e.getObjContents().get(2)); //Extract signed token hash
 					//TODO check token
 					ShareFile sf = FileServer.fileList.getFile("/"+remotePath);
@@ -317,7 +317,7 @@ public class FileThread extends Thread
 				else if (e.getMessage().compareTo("DELETEF")==0) {
 
 					String remotePath = enc.decryptAES((byte [])e.getObjContents().get(0));
-					Token t = (Token)enc.extractToken(e, enc, 1);
+					Token t = (Token)enc.extractToken(e, 1);
 					byte[] hashedToken = enc.decryptAESBytes((byte [])e.getObjContents().get(2)); //Extract signed token hash
 					//TODO check token
 					ShareFile sf = FileServer.fileList.getFile("/"+remotePath);

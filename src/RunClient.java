@@ -217,6 +217,8 @@ public class RunClient {
 			if(username.isEmpty() || password.isEmpty()){
 				System.out.println("Invalid username or password format, please try again!");
 			}
+			if(username.equalsIgnoreCase("break") || password.equalsIgnoreCase("break"))
+				break;
 		}while(username.isEmpty() || password.isEmpty());
 
 		TokenTuple tokTuple = gcli.getToken(username, password);		//gets Usertoken from server
@@ -275,12 +277,21 @@ public class RunClient {
 	}
 
 	public static boolean createGroup(Scanner input, GroupClient gcli){
-		System.out.println("Enter the name for the group (cannot contain '/'): ");
+		System.out.println("Enter the name for the group (cannot contain '/' ',' '[' ']' ':' or ' '): ");
 		String gName = input.nextLine();
-		if(gName.isEmpty()) {
-			System.out.println("Invalid group name, please try again: ");
+		while(gName.isEmpty()) {
+			System.out.println("Invalid group name, please try again(Enter break to exit): ");
 			gName = input.nextLine();
+			if(gName.equals("break"))
+				return false;
 		}
+		while(gName.contains("/") || gName.contains(" ") || gName.contains("[") || gName.contains("]") || gName.contains(":") || gName.contains(",")){
+			System.out.println("Invalid group name, please try again(Enter break to exit): ");
+			gName = input.nextLine();
+			if(gName.equals("break"))
+				return false;
+		}
+
 		TokenTuple tokTuple = gcli.tokTuple;
 		if(gcli.createGroup(gName, tokTuple)) {
 			return true;
@@ -290,22 +301,26 @@ public class RunClient {
 	}
 
 	public static boolean deleteGroup(Scanner input, GroupClient gcli){
-		System.out.println("Enter the name of the group: ");
+		System.out.println("Enter the name of the group(cannot contain '/' ',' '[' ']' ':' or ' '): ");
 		String gName = input.nextLine();
-		if(gName.isEmpty()) {
-			System.out.println("Invalid group name, please try again: ");
+		while(gName.contains("/") || gName.isEmpty() || gName.contains(" ") || gName.contains("[") || gName.contains("]") || gName.contains(":") || gName.contains(",")) {
+			System.out.println("Invalid group name, please try again(Enter break to exit): ");
 			gName = input.nextLine();
+			if(gName.equals("break"))
+				return false;
 		}
 		TokenTuple tokTuple = gcli.tokTuple;
 		return gcli.deleteGroup(gName, tokTuple);
 	}
 
 	public static boolean listMembers(Scanner input, GroupClient gcli){
-		System.out.println("Enter the name of the group: ");
+		System.out.println("Enter the name of the group(cannot contain '/' ',' '[' ']' ':' or ' '): ");
 		String gName = input.nextLine();
-		if(gName.isEmpty()) {
-			System.out.println("Invalid group name, please try again: ");
+		while(gName.contains("/") || gName.isEmpty() || gName.contains(" ") || gName.contains("[") || gName.contains("]") || gName.contains(":") || gName.contains(",")) {
+			System.out.println("Invalid group name, please try again(Enter break to exit): ");
 			gName = input.nextLine();
+			if(gName.equals("break"))
+				return false;
 		}
 		TokenTuple tokTuple = gcli.tokTuple;
 		ArrayList<String> members = (ArrayList<String>)gcli.listMembers(gName, tokTuple);
@@ -323,15 +338,19 @@ public class RunClient {
 	public static boolean addUserToGroup(Scanner input, GroupClient gcli){
 		System.out.println("Enter the name of the user to add: ");
 		String username = input.nextLine();
-		if(username.isEmpty()) {
-			System.out.println("Invalid username, please try again: ");
+		while(username.isEmpty()) {
+			System.out.println("Invalid username, please try again(Enter break to exit): ");
 			username = input.nextLine();
+			if(username.equals("break"))
+				return false;
 		}
-		System.out.println("Enter the name of the group: ");
+		System.out.println("Enter the name of the group(cannot contain '/' ',' '[' ']' ':' or ' '): ");
 		String gName = input.nextLine();
-		if(gName.isEmpty()) {
-			System.out.println("Invalid group name, please try again: ");
+		while(gName.contains("/") || gName.isEmpty() || gName.contains(" ") || gName.contains("[") || gName.contains("]") || gName.contains(":") || gName.contains(",")) {
+			System.out.println("Invalid group name, please try again(Enter break to exit): ");
 			gName = input.nextLine();
+			if(gName.equals("break"))
+				return false;
 		}
 		TokenTuple tokTuple = gcli.tokTuple;
 		return gcli.addUserToGroup(username, gName, tokTuple);
@@ -340,15 +359,19 @@ public class RunClient {
 	public static boolean deleteUserFromGroup(Scanner input, GroupClient gcli){
 		System.out.println("Enter the name of the user to remove: ");
 		String username = input.nextLine();
-		if(username.isEmpty()) {
-			System.out.println("Invalid username, please try again: ");
+		while(username.isEmpty()) {
+			System.out.println("Invalid username, please try again(Enter break to exit): ");
 			username = input.nextLine();
+			if(username.equals("break"))
+				return false;
 		}
-		System.out.println("Enter the name of the group: ");
+		System.out.println("Enter the name of the group(cannot contain '/' ',' '[' ']' ':' or ' '): ");
 		String gName = input.nextLine();
-		if(gName.isEmpty()) {
+		while(gName.contains("/") || gName.isEmpty() || gName.contains(" ") || gName.contains("[") || gName.contains("]") || gName.contains(":") || gName.contains(",")) {
 			System.out.println("Invalid group name, please try again: ");
 			gName = input.nextLine();
+			if(gName.equals("break"))
+				return false;
 		}
 		TokenTuple tokTuple = gcli.tokTuple;
 		return gcli.deleteUserFromGroup(username, gName, tokTuple);
@@ -376,38 +399,49 @@ public class RunClient {
 	public static boolean uploadFile(Scanner input, TokenTuple tokTuple, FileClient fcli) {
 		System.out.println("Please enter the source file name: ");
 		String sourceFile = input.nextLine();
-		if(sourceFile.isEmpty()) {
-			System.out.println("Please enter a valid file name: ");
+		while(sourceFile.isEmpty()) {
+			System.out.println("Please enter a valid file name(Enter break to exit): ");
 			sourceFile = input.nextLine();
+			if(sourceFile.equalsIgnoreCase("break"))
+				return false;
 		}
 		System.out.println("Please enter the destination file name: ");
 		String destFile = input.nextLine();
-		if(destFile.isEmpty()) {
-			System.out.println("Please enter a valid file name: ");
+		while(destFile.isEmpty()) {
+			System.out.println("Please enter a valid file name(Enter break to exit): ");
 			destFile = input.nextLine();
-		}
-		System.out.println("Please enter the group name: ");
-		String group = input.nextLine();
-		if(group.isEmpty()) {
-			System.out.println("Please enter a valid group name: ");
-			group = input.nextLine();
-		}
+			if(destFile.equalsIgnoreCase("break"))
+				return false;
 
-		return fcli.upload(sourceFile, destFile, group, tokTuple);
+		}
+		System.out.println("Please enter the group name(cannot contain '/' ',' '[' ']' ':' or ' '): ");
+		String gName = input.nextLine();
+		while(gName.contains("/") || gName.isEmpty() || gName.contains(" ") || gName.contains("[") || gName.contains("]") || gName.contains(":") || gName.contains(",")) {
+			System.out.println("Invalid group name, please try again: ");
+			gName = input.nextLine();
+			if(gName.equals("break"))
+				return false;
+		}
+		return fcli.upload(sourceFile, destFile, gName, tokTuple);
 	}
 
 	public static boolean downloadFile(Scanner input, TokenTuple tokTuple, FileClient fcli) {
 		System.out.println("Please enter the source file name: ");
 		String sourceFile = input.nextLine();
-		if(sourceFile.isEmpty()) {
-			System.out.println("Please enter a valid file name: ");
+		while(sourceFile.isEmpty()) {
+			System.out.println("Please enter a valid file name(Enter break to exit): ");
 			sourceFile = input.nextLine();
+			if(sourceFile.equalsIgnoreCase("break"))
+				return false;
 		}
 		System.out.println("Please enter the destination file name: ");
 		String destFile = input.nextLine();
-		if(destFile.isEmpty()) {
-			System.out.println("Please enter a valid file name: ");
+		while(destFile.isEmpty()) {
+			System.out.println("Please enter a valid file name(Enter break to exit): ");
 			destFile = input.nextLine();
+			if(destFile.equalsIgnoreCase("break"))
+				return false;
+
 		}
 		return fcli.download(sourceFile, destFile, tokTuple);
 	}
@@ -415,9 +449,11 @@ public class RunClient {
 	public static boolean deleteFile(Scanner input, TokenTuple tokTuple, FileClient fcli) {
 		System.out.println("Please enter the file you would like to delete: ");
 		String filename = input.nextLine();
-		if(filename.isEmpty()) {
+		while(filename.isEmpty()) {
 			System.out.println("Please enter a valid file name: ");
 			filename = input.nextLine();
+			if(filename.equals("break"))
+				return false;
 		}
 		return fcli.delete(filename, tokTuple);
 	}

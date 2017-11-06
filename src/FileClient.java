@@ -157,7 +157,7 @@ public class FileClient extends Client implements FileClientInterface {
 			 if(e.getMessage().equals("OK"))
 			 {
 				String rec = enc.decryptAES((byte [])e.getObjContents().get(0));
-				List<String> ret = enc.extractList(e,enc, 0);
+				List<String> ret = enc.extractList(e, 0);
 				return (List<String>)ret; //This cast creates compiler warnings. Sorry.
 			 }
 

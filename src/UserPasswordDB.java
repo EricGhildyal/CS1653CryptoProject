@@ -6,11 +6,11 @@ import org.apache.commons.codec.binary.Base64;
 
 public class UserPasswordDB{
   String filename = "";
-  Encrypt enc = null;
+  AESAndHash enc = null;
 
   public UserPasswordDB(String filename){
     this.filename = filename;
-    enc = new Encrypt(null);
+    enc = new AESAndHash(null);
   }
 
   public synchronized void add(String user, String password) throws Exception{
