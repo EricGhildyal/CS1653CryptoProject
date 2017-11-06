@@ -1,9 +1,9 @@
 import java.util.List;
 import java.util.ArrayList;
+import java.util.*;
 
-public class Token implements UserToken, java.io.Serializable{
-	 
-  private static final long serialVersionUID = 2752981720946956959L;
+public class Token implements UserToken{
+
   private String server, username;
   private ArrayList<String> groups;
 
@@ -59,5 +59,20 @@ public class Token implements UserToken, java.io.Serializable{
 	  						   + "Username:%s\n"
 	  						   + "Groups:%s\n", this.server, this.username, this.groups);
   }
+
+	public String toUniqueString() {
+		ArrayList<String> orderedGroups = new ArrayList<String>();
+		for(String str : this.groups){
+			orderedGroups.add(str);
+		}
+
+		Collections.sort(orderedGroups);
+		String groupsListString = "";
+		for(String str:orderedGroups){
+			groupsListString += String.format("/%s", str);
+		}
+
+		return String.format("%s/%s%s", this.server, this.username, groupsListString);
+	}
 
 }

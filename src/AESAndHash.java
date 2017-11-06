@@ -5,9 +5,9 @@ import java.util.List;
 import org.bouncycastle.crypto.digests.SHA256Digest;
 import org.apache.commons.codec.binary.Base64;
 
-public class Encrypt{
+public class AESAndHash{
     SecretKeySpec key;
-    public Encrypt(SecretKeySpec key){
+    public AESAndHash(SecretKeySpec key){
         this.key = key;
         //System.out.println(key.getEncoded());
         //System.out.println(key.getFormat());
@@ -20,6 +20,20 @@ public class Encrypt{
             Cipher encCipher = Cipher.getInstance("AES");
             encCipher.init(Cipher.ENCRYPT_MODE, key);
             ret = encCipher.doFinal(toEncrypt.getBytes());
+        }
+        catch(Exception e){
+            System.out.println(e);
+        }
+        return ret;
+    }
+
+    public byte[] encryptAESBytes(byte[] toEncrypt){
+        byte [] ret = null;
+        try{
+
+            Cipher encCipher = Cipher.getInstance("AES");
+            encCipher.init(Cipher.ENCRYPT_MODE, key);
+            ret = encCipher.doFinal(toEncrypt);
         }
         catch(Exception e){
             System.out.println(e);
@@ -42,7 +56,22 @@ public class Encrypt{
         return ret;
     }
 
-    public UserToken extractToken(Envelope e, Encrypt enc, int index){
+    public byte[] decryptAESBytes(byte [] toDecrypt){
+        byte[] ret = null;
+        try{
+            Cipher decCipher = Cipher.getInstance("AES");
+            decCipher.init(Cipher.DECRYPT_MODE, key);
+
+            ret = decCipher.doFinal(toDecrypt);
+        }
+        catch(Exception e){
+
+        }
+
+        return ret;
+    }
+
+    public UserToken extractToken(Envelope e, AESAndHash enc, int index){
 		String token = enc.decryptAES(((byte [])e.getObjContents().get(index)));
 		String [] spl = token.split(":|\\\n");
 		String [] grpss = spl[5].split(",|\\[|\\]|\\ ");
@@ -56,7 +85,7 @@ public class Encrypt{
 
     }
 
-    public List<String> extractList(Envelope e, Encrypt enc, int index){
+    public List<String> extractList(Envelope e, AESAndHash enc, int index){
 		String token = enc.decryptAES(((byte [])e.getObjContents().get(index)));
 		String [] spl = token.split(",|\\[|\\]|\\ ");
 		//String [] grpss = spl[5].split(",|\\[|\\]|\\ ");
@@ -75,6 +104,14 @@ public class Encrypt{
     byte[] out = new byte[32];
     sha.doFinal(out, 0);
     return Base64.encodeBase64String(out);
+  }
+
+  public byte[] sha256Bytes(String s){
+    SHA256Digest sha = new SHA256Digest();
+    sha.update(s.getBytes(), 0, s.getBytes().length);
+    byte[] out = new byte[32];
+    sha.doFinal(out, 0);
+    return out;
   }
 
 }

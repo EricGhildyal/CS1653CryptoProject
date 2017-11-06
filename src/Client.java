@@ -30,7 +30,7 @@ public abstract class Client {
 	/* protected keyword is like private but subclasses have access
 	 * Socket and input/output streams
 	 */
-	public UserToken tok;
+	public TokenTuple tokTuple;
 	protected Socket sock;
 	protected ObjectOutputStream output;
 	protected ObjectInputStream input;

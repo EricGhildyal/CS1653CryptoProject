@@ -104,7 +104,7 @@ public class FileThread extends Thread
 		try
 		{
 			System.out.println("*** New connection from " + socket.getInetAddress() + ":" + socket.getPort() + "***");
-			Encrypt enc = new Encrypt(new SecretKeySpec(key.toByteArray(),"AES"));
+			AESAndHash enc = new AESAndHash(new SecretKeySpec(key.toByteArray(),"AES"));
 			Envelope response;
 
 			do
@@ -118,6 +118,8 @@ public class FileThread extends Thread
 					List<String> list = new ArrayList<String>();
 
 					UserToken yourToken = enc.extractToken(e, enc, 0);
+					byte[] hashedToken = enc.decryptAESBytes((byte [])e.getObjContents().get(1)); //Extract signed token hash
+					//TODO check token
 					List<String> groups = yourToken.getGroups(); //list of current groups user is a member of
 					FileList tmp = FileServer.fileList; //list of files on the server
 					for(ShareFile f :tmp.getFiles()) {
@@ -135,7 +137,7 @@ public class FileThread extends Thread
 				{
 					//decrypt transmission here
 
-					if(e.getObjContents().size() < 3)
+					if(e.getObjContents().size() < 4)
 					{
 						response = new Envelope("FAIL-BADCONTENTS");
 					}
@@ -147,6 +149,7 @@ public class FileThread extends Thread
 						String grp = enc.decryptAES(((byte [])e.getObjContents().get(1)));
 
 						String token = enc.decryptAES(((byte [])e.getObjContents().get(2)));
+
 
 						if(path == null) {
 							response = new Envelope("FAIL-BADPATH");
@@ -161,6 +164,8 @@ public class FileThread extends Thread
 							String remotePath = path;
 							String group = grp;
 							UserToken yourToken = enc.extractToken(e, enc, 2); //Extract token
+							byte[] hashedToken = enc.decryptAESBytes((byte [])e.getObjContents().get(3)); //Extract signed token hash
+							//TODO check token
 
 							if (FileServer.fileList.checkFile(remotePath)) {
 								System.out.printf("Error: file already exists at %s\n", remotePath);
@@ -168,6 +173,7 @@ public class FileThread extends Thread
 							}
 							else if (!yourToken.getGroups().contains(group)) {
 								System.out.printf("Error: user missing valid token for group %s\n", group);
+								System.out.print(yourToken.getGroups());
 								response = new Envelope("FAIL-UNAUTHORIZED"); //Success
 							}
 							else  {
@@ -209,6 +215,8 @@ public class FileThread extends Thread
 
 					String remotePath = enc.decryptAES((byte [])e.getObjContents().get(0));
 					Token t = (Token)enc.extractToken(e, enc, 1);
+					byte[] hashedToken = enc.decryptAESBytes((byte [])e.getObjContents().get(2)); //Extract signed token hash
+					//TODO check token
 					ShareFile sf = FileServer.fileList.getFile("/"+remotePath);
 					if (sf == null) {
 						System.out.printf("Error: File %s doesn't exist\n", remotePath);
@@ -310,6 +318,8 @@ public class FileThread extends Thread
 
 					String remotePath = enc.decryptAES((byte [])e.getObjContents().get(0));
 					Token t = (Token)enc.extractToken(e, enc, 1);
+					byte[] hashedToken = enc.decryptAESBytes((byte [])e.getObjContents().get(2)); //Extract signed token hash
+					//TODO check token
 					ShareFile sf = FileServer.fileList.getFile("/"+remotePath);
 					if (sf == null) {
 						System.out.printf("Error: File %s doesn't exist\n", remotePath);

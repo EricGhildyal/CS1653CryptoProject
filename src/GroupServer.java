@@ -237,4 +237,8 @@ class Group implements Serializable{
 		this.name = name;
 		this.owner = owner;
 	}
+
+	public String toString(){
+		return name;
+	}
 }

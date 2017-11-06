@@ -3,7 +3,7 @@ import java.util.List;
 
 /**
  * A simple interface to the token data structure that will be
- * returned by a group server.  
+ * returned by a group server.
  *
  * You will need to develop a class that implements this interface so
  * that your code can interface with the tokens created by your group
@@ -47,5 +47,15 @@ public interface UserToken
      *
      */
     public List<String> getGroups();
+
+    /**
+     * This method creates a predictable string that is unique to this token.
+     * It contains the server name, the user name, and the list of user groups
+     * where the groups are in alphabetical order and each item is delimited by '/'
+     *
+     * @return A unique String for this token
+     *
+     */
+    public String toUniqueString();
 
 }   //-- end interface UserToken
