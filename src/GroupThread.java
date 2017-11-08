@@ -374,8 +374,8 @@ public class GroupThread extends Thread
 		}
 		catch(Exception e)
 		{
-			System.err.println("Error: " + e.getMessage());
-			e.printStackTrace(System.err);
+			// System.err.println("Error: " + e.getMessage());
+			// e.printStackTrace(System.err);
 		}
 	}
 
