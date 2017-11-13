@@ -58,3 +58,8 @@ This also still protects against token forgery (T3) because the group server sti
 
 ## Conclusion 
 From the mechanisms we designed none of them protect against multiple threats. For each threat, our group took the approach of each of us coming up with a proposed solution then discussing the pros and cons of each until deciding on one. This allowed us to have multiple options and potentially mix our solutions if one of us considered different risks than others. The discussion phase was probably the longest part of the design process as we didn’t choose one until we all agreed with it. After agreeing on one and writing up we then all checked it to make sure it was written the way we discussed it.
+
+## Ongoing Concerns
+With T5, we are not modifying any of the algorithms from T1 - T4, the session key is established the same way, and adding timestamps to each request does not impact T1 - T4 in any meaningful way.  
+T6 also has no affect on previous algorithms, since our implementation will simply add local encryption on the file servers. Other than the transmission of symmetric group keys, and encrypted data instead of raw data, this has no affect on previous algorithms.  
+T7 does have an affect on T1 and T2, since it requires changing the contents of the authentication token. The token that we had for T1 and T2 will now be used solely for group server authentication, to get file server specific tokens. These tokens behave in much the same way, but with the added check by the file server to make sure that they are the target server for that token. Therefore, since no major modifications are made to the tokens other than an addition of one more field, it maintains the security of T1 and T2.
