@@ -18,7 +18,7 @@ To protect against modification, each message sent is encrypted with the session
 Reorder attacks will be protected by timestamps since once all messages are received you can place them in order by time sent. This also protects against same-session replay attacks because the messages will stop working after enough time for the operation(accounting for possible desynced clocks) to occur. For multi-session replay attacks a session key protects against since no messages are encrypted the same way. This also prevents modification since there is no way for them to decrypt/encrypt their own messages without guessing the session key.
 
 
-[[https://github.com/EricGhildyal/CS1653CryptoProject/blob/master/reports/images/t5.jpg|alt=T5]]
+![T5](https://github.com/EricGhildyal/CS1653CryptoProject/blob/master/reports/images/t5.jpg)
 
 
 ## T6 File Leakage
@@ -34,7 +34,7 @@ When a user is deleted from a group, files will be re-encrypted and a new key wi
 This mechanism makes sure all members of a group have the same key and that the key is sent in a secure manner. In order to keep every user up to date and prevent old users from snooping, a new key will be generated every time a user leaves a group. We are using a 256 bit AES key because it is still secure.
 
 
-[[https://github.com/EricGhildyal/CS1653CryptoProject/blob/master/reports/images/t6.jpg|alt=T6]]
+![T6](https://github.com/EricGhildyal/CS1653CryptoProject/blob/master/reports/images/t6.jpg)
 
 
 ## T7 Token Theft
@@ -53,7 +53,7 @@ This mechanism protects against file servers from stealing your key and using it
 This also still protects against token forgery (T3) because the group server still signs the token, and the token without any target servers listed should never be sent to any file servers. This also uses signed Diffie Hellman to establish a session key, so that no information can be stolen by a man-in-the-middle attack or by passive monitoring (T4).
 
 
-[[https://github.com/EricGhildyal/CS1653CryptoProject/blob/master/reports/images/t7.jpg|alt=T7]]
+![T7](https://github.com/EricGhildyal/CS1653CryptoProject/blob/master/reports/images/t7.jpg)
 
 
 ## Conclusion 
