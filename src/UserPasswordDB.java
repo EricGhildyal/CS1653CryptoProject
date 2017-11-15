@@ -6,11 +6,11 @@ import org.apache.commons.codec.binary.Base64;
 
 public class UserPasswordDB{
   String filename = "";
-  AESAndHash enc = null;
+  CryptoHelper crypto;
 
   public UserPasswordDB(String filename){
     this.filename = filename;
-    enc = new AESAndHash(null);
+    crypto = new CryptoHelper();
   }
 
   public synchronized void add(String user, String password) throws Exception{
@@ -25,7 +25,7 @@ public class UserPasswordDB{
         rand.nextBytes(r);
         String salt = Base64.encodeBase64String(r);
         String saltedPass = salt+password;
-        password = enc.sha256(saltedPass);
+        password = crypto.sha256(saltedPass);
 
         String obj = String.format("{\"user\":\"%s\",\"password\":\"%s\",\"salt\":\"%s\"}\n", user, password, salt);
         fWriter.write(obj);
@@ -83,7 +83,7 @@ public class UserPasswordDB{
 
         if(user.equals(storedUser)){
           String saltedPass = jobj.getString("salt") + password;
-          password = enc.sha256(saltedPass);
+          password = crypto.sha256(saltedPass);
           if(password.equals(storedPass)){
             fileReader.close();
             return true;

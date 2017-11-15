@@ -222,6 +222,9 @@ public class RunClient {
 		}while(username.isEmpty() || password.isEmpty());
 
 		TokenTuple tokTuple = gcli.getToken(username, password);		//gets Usertoken from server
+		if(tokTuple == null){
+			return false;
+		}
 		UserToken tok = tokTuple.tok;
 
 		if(tok != null) {
