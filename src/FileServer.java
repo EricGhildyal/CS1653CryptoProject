@@ -42,40 +42,29 @@ public class FileServer extends Server {
 		catch(FileNotFoundException e)
 		{
 			System.out.println("FileList Does Not Exist. Creating FileList...");
-			
 			fileList = new FileList();
-			
 		}
-		catch(IOException e)
+		catch(Exception e)
 		{
-			System.out.println("Error reading from FileList file");
-			System.exit(-1);
-		}
-		catch(ClassNotFoundException e)
-		{
-			System.out.println("Error reading from FileList file");
+			System.out.println("Error reading from FileList file: " + e);
 			System.exit(-1);
 		}
 		
 		File file = new File("shared_files");
-		 if (file.mkdir()) {
+		if (file.mkdir()) {
 			 System.out.println("Created new shared_files directory");
-		 }
-		 else if (file.exists()){
+		}else if (file.exists()){
 			 System.out.println("Found shared_files directory");
-		 }
-		 else {
+		}else{
 			 System.out.println("Error creating shared_files directory");				 
-		 }
+		}
 		
 		//Autosave Daemon. Saves lists every 5 minutes
 		AutoSaveFS aSave = new AutoSaveFS();
 		aSave.setDaemon(true);
 		aSave.start();
 		
-		
 		boolean running = true;
-		
 		try
 		{			
 			final ServerSocket serverSock = new ServerSocket(port);

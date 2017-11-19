@@ -36,7 +36,6 @@ public abstract class Client {
 	protected ObjectInputStream input;
 	public BigInteger sKey;
 
-
 	/**
 	 * Connects to server from param server on port param port
 	 *
@@ -47,8 +46,22 @@ public abstract class Client {
 	public boolean connect(final String server, final int port){
 		try {
 			this.sock = new Socket(server, port);
-			output = new ObjectOutputStream(this.sock.getOutputStream());  //Declare the output and input streams
+			//Declare the output and input streams
+			output = new ObjectOutputStream(this.sock.getOutputStream());
 			input = new ObjectInputStream(this.sock.getInputStream());
+			//run Diffie Hellman method to start connection
+			setupDH();
+		}catch(java.net.SocketException s){
+			//do nothing
+		}catch(Exception e){
+			System.out.println("There was an error in connecting to the server: " + e);
+			return false;
+		}
+		return true;
+	}
+
+	private void setupDH(){
+		try{
 			//generate parameters
 			Provider bcp = new BouncyCastleProvider();
 			DHParametersGenerator paramGen = new DHParametersGenerator();
@@ -66,39 +79,24 @@ public abstract class Client {
 			DHPublicKeyParameters publicKeyParam = (DHPublicKeyParameters)clientKeys.getPublic();
 			DHPrivateKeyParameters privateKeyParam = (DHPrivateKeyParameters)clientKeys.getPrivate();
 			BigInteger pubKey = publicKeyParam.getY();
-			Envelope gMSG = new Envelope("g");
-			gMSG.addObject(g);
-			output.writeObject(gMSG);
-
-			Envelope pMSG = new Envelope("p");
-			pMSG.addObject(p);
-			output.writeObject(pMSG);
-
-			Envelope pubMSG = new Envelope("pubKey");
-			pubMSG.addObject(pubKey);
-			output.writeObject(pubMSG);
-
-
-
+			Envelope dhMsgs = new Envelope("DHMSGS");
+			dhMsgs.addObject(g);
+			dhMsgs.addObject(p);
+			dhMsgs.addObject(pubKey);
+			output.writeObject(dhMsgs);
 
 			//get server public key and agree on a session key
 			Envelope servPubKey = (Envelope)input.readObject();
 			ArrayList<Object> pub = servPubKey.getObjContents();
 			BigInteger serverPub = (BigInteger)pub.get(0);
-
 			DHPublicKeyParameters servPub = new DHPublicKeyParameters(serverPub, params);
 			DHBasicAgreement keyAgree = new DHBasicAgreement();
 			keyAgree.init(clientKeys.getPrivate());
-
 			sKey = keyAgree.calculateAgreement(servPub);
 			output.reset();
-
-
 		}catch(Exception e){
-			System.out.println("There was an error in connecting to the server: " + e);
-			return false;
+			System.out.println("Error during Diffie Hellman exchange: " + e);
 		}
-		return true;
 	}
 
 	public boolean isConnected() {
@@ -116,9 +114,9 @@ public abstract class Client {
 			{
 				Envelope message = new Envelope("DISCONNECT");
 				output.writeObject(message);
-			}
-			catch(Exception e)
-			{
+			}catch(java.net.SocketException s){
+				//do nothing
+			}catch(Exception e){
 				System.err.println("Error: " + e.getMessage());
 				e.printStackTrace(System.err);
 			}

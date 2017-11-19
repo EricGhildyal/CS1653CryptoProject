@@ -8,16 +8,19 @@ import java.util.List;
 import javax.crypto.*;
 import javax.crypto.spec.SecretKeySpec;
 import java.util.ArrayList;
+import java.security.*;
 
 
 public class FileClient extends Client implements FileClientInterface {
 	private byte [] byteFKey;
 	private SecretKeySpec key;
-	private AESAndHash enc;
+	//Diffie Hellman key
+	private Key aesKey;
+	private CryptoHelper crypto = new CryptoHelper();
 
 	public boolean connect(final String server, final int port){
 		boolean ret = super.connect(server, port);
-		enc = new AESAndHash(new SecretKeySpec(this.sKey.toByteArray(), "AES"));
+		aesKey = new SecretKeySpec(this.sKey.toByteArray(), "AES");
 		return ret;
 	}
 
@@ -30,11 +33,11 @@ public class FileClient extends Client implements FileClientInterface {
 			remotePath = filename;
 		}
 		Envelope env = new Envelope("DELETEF"); //Success
-		byte [] path = enc.encryptAES(remotePath);
-		byte [] tok = enc.encryptAES(tokTuple.tok.toString());
+		byte [] path = crypto.encryptAES(remotePath, aesKey);
+		byte [] tok = crypto.encryptAES(tokTuple.tok.toString(), aesKey);
 	    env.addObject(path);
 	    env.addObject(tok);
-			env.addObject(enc.encryptAESBytes(tokTuple.hashedToken));//Add the signed token hash
+			env.addObject(crypto.encryptAES(tokTuple.hashedToken, aesKey));//Add the signed token hash
 	    try {
 			output.reset();
 			output.writeObject(env);
@@ -69,11 +72,11 @@ public class FileClient extends Client implements FileClientInterface {
 				FileOutputStream fos = new FileOutputStream(file);
 
 				Envelope env = new Envelope("DOWNLOADF"); //Success
-				byte [] srcF = enc.encryptAES(sourceFile);
-				byte [] tok = enc.encryptAES(tokTuple.tok.toString());
+				byte [] srcF = crypto.encryptAES(sourceFile, aesKey);
+				byte [] tok = crypto.encryptAES(tokTuple.tok.toString(), aesKey);
 				env.addObject(srcF);
 				env.addObject(tok);
-				env.addObject(enc.encryptAESBytes(tokTuple.hashedToken));//Add the signed token hash
+				env.addObject(crypto.encryptAES(tokTuple.hashedToken, aesKey));//Add the signed token hash
 				output.reset();
 				output.writeObject(env);
 
@@ -81,11 +84,11 @@ public class FileClient extends Client implements FileClientInterface {
 
 				while (env.getMessage().compareTo("CHUNK")==0) {
 					try{
-						String asdf = enc.decryptAES((byte [])env.getObjContents().get(0));
+						String asdf = crypto.decryptAES((byte [])env.getObjContents().get(0), aesKey);
 
 						byte [] tra = asdf.getBytes();
 
-						String inasdf = enc.decryptAES((byte [])env.getObjContents().get(1));
+						String inasdf = crypto.decryptAES((byte [])env.getObjContents().get(1), aesKey);
 						Integer temp = Integer.parseInt(inasdf);
 
 						fos.write(tra, 0, temp);
@@ -144,10 +147,10 @@ public class FileClient extends Client implements FileClientInterface {
 			 Envelope message = null, e = null;
 			 //Tell the server to return the member list
 			 message = new Envelope("LFILES");
-			 byte [] tok = enc.encryptAES(tokTuple.tok.toString());
+			 byte [] tok = crypto.encryptAES(tokTuple.tok.toString(), aesKey);
 			 //TODO add hash
 			 message.addObject(tok); //Add requester's token
-			 message.addObject(enc.encryptAESBytes(tokTuple.hashedToken));//Add the signed token hash
+			 message.addObject(crypto.encryptAES(tokTuple.hashedToken, aesKey));//Add the signed token hash
 			 output.reset();
 			 output.writeObject(message);
 
@@ -156,8 +159,8 @@ public class FileClient extends Client implements FileClientInterface {
 			 //If server indicates success, return the member list
 			 if(e.getMessage().equals("OK"))
 			 {
-				String rec = enc.decryptAES((byte [])e.getObjContents().get(0));
-				List<String> ret = enc.extractList(e, 0);
+				String rec = crypto.decryptAES((byte [])e.getObjContents().get(0), aesKey);
+				List<String> ret = crypto.extractList(e, 0, aesKey);
 				return (List<String>)ret; //This cast creates compiler warnings. Sorry.
 			 }
 
@@ -184,20 +187,18 @@ public class FileClient extends Client implements FileClientInterface {
 		if (destFile.charAt(0)!='/') { //insert "/" at beginning of filename if it doesn't exist
 			 destFile = "/" + destFile;
 		 }
-		 byte [] srcFile = enc.encryptAES(sourceFile);
-		 byte [] destinationFile = enc.encryptAES(destFile);
-		 byte [] grpName = enc.encryptAES(group);
-		 byte [] tok = enc.encryptAES(tokTuple.tok.toString());
-		try
-		 {
-
+		 byte [] srcFile = crypto.encryptAES(sourceFile, aesKey);
+		 byte [] destinationFile = crypto.encryptAES(destFile, aesKey);
+		 byte [] grpName = crypto.encryptAES(group, aesKey);
+		 byte [] tok = crypto.encryptAES(tokTuple.tok.toString(), aesKey);
+		try{
 			 Envelope message = null, env = null;
 			 //Tell the server to return the member list
 			 message = new Envelope("UPLOADF");
 			 message.addObject(destinationFile);
 			 message.addObject(grpName);
 			 message.addObject(tok);
-			 message.addObject(enc.encryptAESBytes(tokTuple.hashedToken));//Add the signed token hash
+			 message.addObject(crypto.encryptAES(tokTuple.hashedToken, aesKey));//Add the signed token hash
 			 output.reset();
 			 output.writeObject(message);
 

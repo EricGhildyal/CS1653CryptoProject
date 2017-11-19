@@ -4,22 +4,23 @@ import java.util.ArrayList;
 import java.util.List;
 import javax.crypto.spec.SecretKeySpec;
 import java.util.ArrayList;
+import java.security.*;
 
 public class GroupClient extends Client implements GroupClientInterface {
 	private byte [] byteFKey;
 	private SecretKeySpec key;
-	private AESAndHash enc;
+	//Diffie Hellman key
+	private Key aesKey;
+	private CryptoHelper crypto = new CryptoHelper();
 
 	public boolean connect(final String server, final int port){
 		boolean ret = super.connect(server, port);
-		enc = new AESAndHash(new SecretKeySpec(this.sKey.toByteArray(), "AES"));
+		aesKey = new SecretKeySpec(this.sKey.toByteArray(), "AES");
 		return ret;
 	}
 
-	public TokenTuple getToken(String username, String password)
-	 {
-		try
-		{
+	public TokenTuple getToken(String username, String password){
+		try{
 			UserToken token = null;
 			//TODO this object type probably needs to be change once encrypted with server key
 			byte [] hashedToken = new byte [32];
@@ -27,8 +28,8 @@ public class GroupClient extends Client implements GroupClientInterface {
 
 			//Tell the server to return a token.
 			message = new Envelope("GET");
-			byte [] usrName = enc.encryptAES(username);
-			byte [] pass = enc.encryptAES(password);
+			byte [] usrName = crypto.encryptAES(username, aesKey);
+			byte [] pass = crypto.encryptAES(password, aesKey);
 			message.addObject(usrName); //Add user name string
 			message.addObject(pass); //Add password
 			output.reset();
@@ -36,18 +37,17 @@ public class GroupClient extends Client implements GroupClientInterface {
 
 			//Get the response from the server
 			response = (Envelope)input.readObject();
-
+			System.out.println("gcli: " + response.getMessage());
 			//Successful response
 			if(response.getMessage().equals("OK"))
 			{
 				//If there is a token in the Envelope, return it
-
 				ArrayList<Object> temp = null;
 				temp = response.getObjContents();
 
 				if(temp.size() == 2)
 				{
-					token = enc.extractToken(response, 0);
+					token = crypto.extractToken(response, 0, aesKey);
 					//TODO this object type probably needs to be change once encrypted with server key
 					hashedToken = (byte[])response.getObjContents().get(1);
 
@@ -55,8 +55,6 @@ public class GroupClient extends Client implements GroupClientInterface {
 					return tokTuple;
 				}
 			}
-
-
 			return null;
 		}
 		catch(NullPointerException e){
@@ -78,10 +76,10 @@ public class GroupClient extends Client implements GroupClientInterface {
 				Envelope message = null, response = null;
 				//Tell the server to create a user
 				message = new Envelope("CUSER");
-				message.addObject(enc.encryptAES(username)); //Add user name string
-				message.addObject(enc.encryptAES(password)); //Add password string
-				message.addObject(enc.encryptAES(tokTuple.tok.toString())); //Add the requester's token
-				message.addObject(enc.encryptAESBytes(tokTuple.hashedToken));//Add the signed token hash
+				message.addObject(crypto.encryptAES(username, aesKey)); //Add user name string
+				message.addObject(crypto.encryptAES(password, aesKey)); //Add password string
+				message.addObject(crypto.encryptAES(tokTuple.tok.toString(), aesKey)); //Add the requester's token
+				message.addObject(crypto.encryptAES(tokTuple.hashedToken, aesKey));//Add the signed token hash
 				output.reset();
 				output.writeObject(message);
 
@@ -112,9 +110,9 @@ public class GroupClient extends Client implements GroupClientInterface {
 
 				//Tell the server to delete a user
 				message = new Envelope("DUSER");
-				message.addObject(enc.encryptAES(username)); //Add user name
-				message.addObject(enc.encryptAES(tokTuple.tok.toString()));  //Add requester's token
-				message.addObject(enc.encryptAESBytes(tokTuple.hashedToken));//Add the signed token hash
+				message.addObject(crypto.encryptAES(username, aesKey)); //Add user name
+				message.addObject(crypto.encryptAES(tokTuple.tok.toString(), aesKey));  //Add requester's token
+				message.addObject(crypto.encryptAES(tokTuple.hashedToken, aesKey));//Add the signed token hash
 				output.reset();
 				output.writeObject(message);
 
@@ -144,21 +142,18 @@ public class GroupClient extends Client implements GroupClientInterface {
 				Envelope message = null, response = null;
 				//Tell the server to create a group
 				message = new Envelope("CGROUP");
-				message.addObject(enc.encryptAES(groupname)); //Add the group name string
-				message.addObject(enc.encryptAES(tokTuple.tok.toString())); //Add the requester's token
-				message.addObject(enc.encryptAESBytes(tokTuple.hashedToken));//Add the signed token hash
+				message.addObject(crypto.encryptAES(groupname, aesKey)); //Add the group name string
+				message.addObject(crypto.encryptAES(tokTuple.tok.toString(), aesKey)); //Add the requester's token
+				message.addObject(crypto.encryptAES(tokTuple.hashedToken, aesKey));//Add the signed token hash
 				output.reset();
 				output.writeObject(message);
 
 				response = (Envelope)input.readObject();
-
 				//If server indicates success, return true
-				if(response.getMessage().equals("OK"))
-				{
+				if(response.getMessage().equals("OK")){
 					output.reset();
 					return true;
 				}
-
 				return false;
 			}
 			catch(Exception e)
@@ -176,9 +171,9 @@ public class GroupClient extends Client implements GroupClientInterface {
 				Envelope message = null, response = null;
 				//Tell the server to delete a group
 				message = new Envelope("DGROUP");
-				message.addObject(enc.encryptAES(groupname)); //Add the group name string
-				message.addObject(enc.encryptAES(tokTuple.tok.toString())); //Add the requester's token
-				message.addObject(enc.encryptAESBytes(tokTuple.hashedToken));//Add the signed token hash
+				message.addObject(crypto.encryptAES(groupname, aesKey)); //Add the group name string
+				message.addObject(crypto.encryptAES(tokTuple.tok.toString(), aesKey)); //Add the requester's token
+				message.addObject(crypto.encryptAES(tokTuple.hashedToken, aesKey));//Add the signed token hash
 				output.reset();
 				output.writeObject(message);
 
@@ -208,11 +203,11 @@ public class GroupClient extends Client implements GroupClientInterface {
 			 Envelope message = null, response = null;
 			 //Tell the server to return the member list
 			 message = new Envelope("LMEMBERS");
-			 byte [] grp = enc.encryptAES(group);
-			 byte [] tok = enc.encryptAES(tokTuple.tok.toString());
+			 byte [] grp = crypto.encryptAES(group, aesKey);
+			 byte [] tok = crypto.encryptAES(tokTuple.tok.toString(), aesKey);
 			 message.addObject(grp); //Add group name string
 			 message.addObject(tok); //Add requester's token
-			 message.addObject(enc.encryptAESBytes(tokTuple.hashedToken));//Add the signed token hash
+			 message.addObject(crypto.encryptAES(tokTuple.hashedToken, aesKey));//Add the signed token hash
 			 output.reset();
 			 output.writeObject(message);
 
@@ -222,7 +217,7 @@ public class GroupClient extends Client implements GroupClientInterface {
 			 if(response.getMessage().equals("OK"))
 			 {
 				 output.reset();
-				return enc.extractList(response, 0);
+				return crypto.extractList(response, 0, aesKey);
 				//return (List<String>)response.getObjContents().get(0); //This cast creates compiler warnings. Sorry.
 			 }
 
@@ -244,10 +239,10 @@ public class GroupClient extends Client implements GroupClientInterface {
 				Envelope message = null, response = null;
 				//Tell the server to add a user to the group
 				message = new Envelope("AUSERTOGROUP");
-				message.addObject(enc.encryptAES(username)); //Add user name string
-				message.addObject(enc.encryptAES(groupname)); //Add the group name string
-				message.addObject(enc.encryptAES(tokTuple.tok.toString())); //Add the requester's token
-				message.addObject(enc.encryptAESBytes(tokTuple.hashedToken));//Add the signed token hash
+				message.addObject(crypto.encryptAES(username, aesKey)); //Add user name string
+				message.addObject(crypto.encryptAES(groupname, aesKey)); //Add the group name string
+				message.addObject(crypto.encryptAES(tokTuple.tok.toString(), aesKey)); //Add the requester's token
+				message.addObject(crypto.encryptAES(tokTuple.hashedToken, aesKey));//Add the signed token hash
 				output.reset();
 				output.writeObject(message);
 
@@ -276,10 +271,10 @@ public class GroupClient extends Client implements GroupClientInterface {
 				Envelope message = null, response = null;
 				//Tell the server to remove a user from the group
 				message = new Envelope("RUSERFROMGROUP");
-				message.addObject(enc.encryptAES(username)); //Add user name string
-				message.addObject(enc.encryptAES(groupname)); //Add the group name string
-				message.addObject(enc.encryptAES(tokTuple.tok.toString())); //Add the requester's token
-				message.addObject(enc.encryptAESBytes(tokTuple.hashedToken));//Add the signed token hash
+				message.addObject(crypto.encryptAES(username, aesKey)); //Add user name string
+				message.addObject(crypto.encryptAES(groupname, aesKey)); //Add the group name string
+				message.addObject(crypto.encryptAES(tokTuple.tok.toString(), aesKey)); //Add the requester's token
+				message.addObject(crypto.encryptAES(tokTuple.hashedToken, aesKey));//Add the signed token hash
 				output.reset();
 				output.writeObject(message);
 
