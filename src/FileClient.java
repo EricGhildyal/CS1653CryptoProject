@@ -20,7 +20,7 @@ public class FileClient extends Client implements FileClientInterface {
 
 	public boolean connect(final String server, final int port){
 		boolean ret = super.connect(server, port);
-		aesKey = new SecretKeySpec(this.sKey.toByteArray(), "AES");
+		aesKey = new SecretKeySpec(this.confidentialityKey.toByteArray(), "AES");
 		return ret;
 	}
 
@@ -179,7 +179,7 @@ public class FileClient extends Client implements FileClientInterface {
 	public boolean upload(String sourceFile, String destFile, String group,
 			TokenTuple tokTuple) {
 				if(key == null && this.isConnected()){
-					byteFKey = sKey.toByteArray();
+					byteFKey = confidentialityKey.toByteArray();
 					key = new SecretKeySpec(byteFKey, "AES");
 				}
 

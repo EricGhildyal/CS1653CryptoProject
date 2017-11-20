@@ -34,7 +34,8 @@ public class FileThread extends Thread
 	private final Socket socket;
 	final ObjectInputStream input;
 	final ObjectOutputStream output;
-	BigInteger key;
+	BigInteger confidentialityKey;
+	BigInteger integrityKey;
 	CryptoHelper crypto;
 	KeyRing ring;
 
@@ -56,6 +57,7 @@ public class FileThread extends Thread
 			BigInteger g = (BigInteger)vals.get(0);
 			BigInteger p =(BigInteger)vals.get(1);
 			BigInteger clientPubKey = (BigInteger)vals.get(2);
+			BigInteger clientIntPub = (BigInteger)vals.get(3);
 			//define the parameters based off the p and g, generate keys and send the public to client
 			DHParameters params = new DHParameters(p, g);
 			DHKeyGenerationParameters keyGenParams = new DHKeyGenerationParameters(new SecureRandom(), params);
@@ -65,15 +67,26 @@ public class FileThread extends Thread
 			DHPublicKeyParameters publicKeyParam = (DHPublicKeyParameters)serverKeys.getPublic();
 			DHPrivateKeyParameters privateKeyParam = (DHPrivateKeyParameters)serverKeys.getPrivate();
 			BigInteger pubKey = publicKeyParam.getY();
+			AsymmetricCipherKeyPair serverIntKeys = keyGen.generateKeyPair();
+			DHPublicKeyParameters publicIntKeyParam = (DHPublicKeyParameters)serverIntKeys.getPublic();
+			DHPrivateKeyParameters privateIntKeyParam = (DHPrivateKeyParameters)serverIntKeys.getPrivate();
+			BigInteger pubIntKey = publicIntKeyParam.getY();
 			Envelope serverPub = new Envelope("key");
 			serverPub.addObject(pubKey);
+			serverPub.addObject(pubIntKey);
 			output.reset();
 			output.writeObject(serverPub);
 			DHPublicKeyParameters clientPub = new DHPublicKeyParameters(clientPubKey, params);
 			//create the agreement to make the session key
 			DHBasicAgreement keyAgree = new DHBasicAgreement();
 			keyAgree.init(serverKeys.getPrivate());
-			key = keyAgree.calculateAgreement(clientPub);
+			confidentialityKey = keyAgree.calculateAgreement(clientPub);
+			clientPub = new DHPublicKeyParameters(clientIntPub, params);
+			keyAgree = new DHBasicAgreement();
+			keyAgree.init(serverIntKeys.getPrivate());
+			integrityKey = keyAgree.calculateAgreement(clientPub);
+			System.out.println(confidentialityKey);
+			System.out.println(integrityKey);
 			output.reset();
 		}catch(Exception e){
 			System.out.println("Error during Diffie Hellman exchange: " + e);
@@ -98,8 +111,10 @@ public class FileThread extends Thread
 					if(message.getMessage().equals("DHMSGS")){
 						if(setupDH(message)){
 							dhDone = true;
-							aesKey = new SecretKeySpec(key.toByteArray(),"AES");
+							aesKey = new SecretKeySpec(confidentialityKey.toByteArray(),"AES");
 						}
+						else
+							System.out.println("FAIL");
 					}
 				}
 				
@@ -112,9 +127,9 @@ public class FileThread extends Thread
 					output.reset();
 					output.writeObject(response);
 				}
-				if(message.getMessage().equals("DHMSGS")){
+				/*if(message.getMessage().equals("DHMSGS")){
 					setupDH(message);
-				}
+				}*/
 				if(message.getMessage().equals("UPLOADF")){
 					//decrypt transmission here
 					if(message.getObjContents().size() < 4){

@@ -35,7 +35,8 @@ public class GroupThread extends Thread
 	private UserPasswordDB my_db;
 	final ObjectInputStream input;
 	final ObjectOutputStream output;
-	BigInteger key;
+	BigInteger confidentialityKey;
+	BigInteger integrityKey;
 	CryptoHelper crypto;
 	KeyRing ring;
 
@@ -67,7 +68,8 @@ public class GroupThread extends Thread
 			BigInteger g = (BigInteger)vals.get(0);
 			BigInteger p =(BigInteger)vals.get(1);
 			BigInteger clientPubKey = (BigInteger)vals.get(2);
-			//create the params and make keys. send the public to client
+			BigInteger clientIntPub = (BigInteger)vals.get(3);
+			//define the parameters based off the p and g, generate keys and send the public to client
 			DHParameters params = new DHParameters(p, g);
 			DHKeyGenerationParameters keyGenParams = new DHKeyGenerationParameters(new SecureRandom(), params);
 			DHKeyPairGenerator keyGen = new DHKeyPairGenerator();
@@ -76,17 +78,27 @@ public class GroupThread extends Thread
 			DHPublicKeyParameters publicKeyParam = (DHPublicKeyParameters)serverKeys.getPublic();
 			DHPrivateKeyParameters privateKeyParam = (DHPrivateKeyParameters)serverKeys.getPrivate();
 			BigInteger pubKey = publicKeyParam.getY();
+			AsymmetricCipherKeyPair serverIntKeys = keyGen.generateKeyPair();
+			DHPublicKeyParameters publicIntKeyParam = (DHPublicKeyParameters)serverIntKeys.getPublic();
+			DHPrivateKeyParameters privateIntKeyParam = (DHPrivateKeyParameters)serverIntKeys.getPrivate();
+			BigInteger pubIntKey = publicIntKeyParam.getY();
 			Envelope serverPub = new Envelope("key");
 			serverPub.addObject(pubKey);
+			serverPub.addObject(pubIntKey);
 			output.reset();
 			output.writeObject(serverPub);
 			DHPublicKeyParameters clientPub = new DHPublicKeyParameters(clientPubKey, params);
-			//agree on a session key
+			//create the agreement to make the session key
 			DHBasicAgreement keyAgree = new DHBasicAgreement();
 			keyAgree.init(serverKeys.getPrivate());
-			key = keyAgree.calculateAgreement(clientPub);
+			confidentialityKey = keyAgree.calculateAgreement(clientPub);
+			clientPub = new DHPublicKeyParameters(clientIntPub, params);
+			keyAgree = new DHBasicAgreement();
+			keyAgree.init(serverIntKeys.getPrivate());
+			integrityKey = keyAgree.calculateAgreement(clientPub);
+			System.out.println(confidentialityKey);
+			System.out.println(integrityKey);
 			output.reset();
-			input.skip(input.available());
 		}catch(Exception e){
 			System.out.println("Error during Diffie Hellman exchange: " + e);
 			return false;
@@ -112,11 +124,11 @@ public class GroupThread extends Thread
 					if(message.getMessage().equals("DHMSGS")){
 						if(setupDH(message)){
 							dhDone = true;
-							aesKey = new SecretKeySpec(key.toByteArray(),"AES");
+							aesKey = new SecretKeySpec(confidentialityKey.toByteArray(),"AES");
 						}
 					}
 				}
-
+				output.reset();
 				if(message.getMessage().equals("GET")){ //Client wants a token
 					String username = crypto.decryptAES((byte[])message.getObjContents().get(0), aesKey); //Get the username
 					String password = crypto.decryptAES((byte[])message.getObjContents().get(1), aesKey); //Get the password
@@ -125,12 +137,13 @@ public class GroupThread extends Thread
 					System.out.println("db get u and p: " + my_db.get(username, password));
 					if(username == null || password == null || !my_db.get(username, password)){
 						response = new Envelope("FAIL");
+						System.out.println("AYYYY");
 						response.addObject(null);
 						output.reset();
 						output.writeObject(response);
 					}else{
 						UserToken yourToken = createToken(username); //Create a token
-
+						System.out.println("bruhhhh");
 						//Respond to the client. On error, the client will receive a null token
 						response = new Envelope("OK");
 						byte [] tok = new byte[32];
@@ -320,6 +333,7 @@ public class GroupThread extends Thread
 					socket.close(); //Close the socket
 					proceed = false; //End this communication loop
 				}else{
+					System.out.println(message.getMessage());
 					response = new Envelope("FAIL"); //Server does not understand client request
 					output.reset();
 					output.writeObject(response);
@@ -430,7 +444,7 @@ public class GroupThread extends Thread
 	private UserToken createToken(String username)
 	{
 		//Check that user exists
-		System.out.println("In createTOken");
+		System.out.println("In createToken");
 		if(my_gs.userList.checkUser(username)){
 			System.out.println("nameExists");
 			//Issue a new token with server's name, user's name, and user's groups
