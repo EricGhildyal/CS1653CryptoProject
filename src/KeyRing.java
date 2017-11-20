@@ -5,52 +5,54 @@ import java.security.cert.*;
 import java.security.cert.Certificate;
 import org.bouncycastle.jce.*;
 import org.bouncycastle.x509.*;
+
 import java.math.*;
 import org.apache.commons.codec.binary.Base64;
 
 //Wrapper class for KeyStore to fit our needs
-public class KeyRing{
+public class KeyRing implements Serializable{
    
     private String alias;
-    private HashMap<String, byte[]> ring;
+    private HashMap<String, Key> ring;
+    private static final long serialVersionUID = 42L;
 
     public KeyRing(String name){
         this.alias = name;
-        ring = new HashMap<String, byte[]>();
+        ring = new HashMap<String, Key>();
     }
 
-    public void addKey(String alias, Key key){
-        byte[] bytesEncoded = Base64.encodeBase64(key.getEncoded());
-        ring.put(alias, bytesEncoded);
+    //setup folder for saving/loading
+    public void init(){
+        File keysFolder = new File(alias+"_keys");
+        keysFolder.mkdir();
+    }
+
+    // check if folder named keys exists or not, create if it doesn't
+    public boolean exists(){
+        File keysFolder = new File(alias+"_keys");
+        if(!keysFolder.isDirectory()){
+            return false;
+        }
+        return true;
+    }
+
+    public boolean addKey(String alias, Key key){
+        if(alias == null || alias.equals("")){
+            return false;
+        }
+        ring.put(alias, key);
+        return true;
     }
 
     public Key getKey(String alias){
-        byte[] base64Enc = ring.get(alias);
-        byte[] decoded = Base64.decodeBase64(base64Enc);
-        
-        return null;
+        if(alias == null || alias.equals("")){
+            return null;
+        }
+        return ring.get(alias);
     }
 
-    public void saveRing(){
-        // check if folder named keys exists or not, create if it doesn't
-        File keysFolder = new File(alias+"_keys");
-        if(!keysFolder.isDirectory()){
-            keysFolder.mkdir();
-        }
-        for(Map.Entry<String, byte[]> entry : ring.entrySet()){
-            String alias = entry.getKey();
-            byte[] k = entry.getValue();
-        }
-        
-    }
-
-    public void loadRing(){
-        // check if folder named keys exists or not, create if it doesn't
-        File keysFolder = new File(alias+"_keys");
-        if(!keysFolder.isDirectory()){
-            return;
-        }
-
+    public String getAlias(){
+        return alias;
     }
 
     // private Key readPemFile(File keyFile){

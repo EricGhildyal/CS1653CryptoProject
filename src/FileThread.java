@@ -36,7 +36,7 @@ public class FileThread extends Thread
 	final ObjectOutputStream output;
 	BigInteger key;
 	CryptoHelper crypto;
-	KeyRing ring;
+	KeyRing keyRing;
 
 	public FileThread(Socket _socket) throws IOException, ClassNotFoundException
 	{
@@ -46,7 +46,15 @@ public class FileThread extends Thread
 		socket = _socket;
 		input = new ObjectInputStream(socket.getInputStream());
 		output = new ObjectOutputStream(socket.getOutputStream());
-		
+		keyRing = new KeyRing("FileServer");
+		if(keyRing.exists()){
+			keyRing = crypto.loadRing(keyRing);
+		}else{ //create new ring
+			keyRing.init();
+			KeyPair kp = crypto.getNewKeypair();
+			keyRing.addKey("rsa_priv", kp.getPrivate());
+			keyRing.addKey("rsa_pub", kp.getPublic());
+		}
 	}
 
 	private boolean setupDH(Envelope message){
@@ -227,8 +235,13 @@ public class FileThread extends Thread
 				}
 				else if(message.getMessage().equals("DISCONNECT"))
 				{
+					crypto.saveRing(keyRing);
 					socket.close();
 					proceed = false;
+				}else{
+					response = new Envelope("FAIL"); //Server does not understand client request
+					output.reset();
+					output.writeObject(response);
 				}
 			} while(proceed);
 		}catch(java.net.SocketException s){

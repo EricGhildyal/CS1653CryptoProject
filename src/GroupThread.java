@@ -37,7 +37,7 @@ public class GroupThread extends Thread
 	final ObjectOutputStream output;
 	BigInteger key;
 	CryptoHelper crypto;
-	KeyRing ring;
+	KeyRing keyRing;
 
 	public GroupThread(Socket _socket, GroupServer _gs, UserPasswordDB db) throws IOException, ClassNotFoundException
 	{
@@ -58,6 +58,15 @@ public class GroupThread extends Thread
 		my_db = db;
 		input = new ObjectInputStream(socket.getInputStream());
 		output = new ObjectOutputStream(socket.getOutputStream());
+		keyRing = new KeyRing("GroupServer");
+		if(keyRing.exists()){
+			keyRing = crypto.loadRing(keyRing);
+		}else{ //create new ring
+			keyRing.init();
+			KeyPair kp = crypto.getNewKeypair();
+			keyRing.addKey("rsa_priv", kp.getPrivate());
+			keyRing.addKey("rsa_pub", kp.getPublic());
+		}
 	}
 
 	private boolean setupDH(Envelope message){
@@ -317,6 +326,7 @@ public class GroupThread extends Thread
 					output.reset();
 					output.writeObject(response);
 				}else if(message.getMessage().equals("DISCONNECT")){ //Client wants to disconnect
+					crypto.saveRing(keyRing);
 					socket.close(); //Close the socket
 					proceed = false; //End this communication loop
 				}else{

@@ -1,9 +1,8 @@
 import java.net.Socket;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
+import java.io.*;
 import java.math.BigInteger;
 import java.security.*;
-import java.util.ArrayList;
+import java.util.*;
 import org.bouncycastle.crypto.generators.*;
 import org.bouncycastle.crypto.params.*;
 import org.bouncycastle.crypto.KeyGenerationParameters;
@@ -14,16 +13,9 @@ import org.bouncycastle.crypto.params.DHKeyGenerationParameters;
 import org.bouncycastle.crypto.generators.DHKeyPairGenerator;
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair;
 import org.bouncycastle.crypto.params.AsymmetricKeyParameter;
-import java.util.Random;
 import org.bouncycastle.asn1.x9.DHPublicKey;
 import org.bouncycastle.crypto.agreement.DHAgreement;
 import org.bouncycastle.crypto.agreement.DHBasicAgreement;
-
-
-//import javax.crypto.interfaces.DHPublicKey;
-//import javax.crypto.spec.DHParameterSpec;
-
-import java.io.NotSerializableException;
 
 public abstract class Client {
 
@@ -35,6 +27,7 @@ public abstract class Client {
 	protected ObjectOutputStream output;
 	protected ObjectInputStream input;
 	public BigInteger sKey;
+	public Key publicKey;
 
 	/**
 	 * Connects to server from param server on port param port
@@ -51,6 +44,8 @@ public abstract class Client {
 			input = new ObjectInputStream(this.sock.getInputStream());
 			//run Diffie Hellman method to start connection
 			setupDH();
+
+
 		}catch(java.net.SocketException s){
 			//do nothing
 		}catch(Exception e){

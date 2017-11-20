@@ -30,7 +30,7 @@ public class CryptoHelper{
         }
     }
 
-    //RSA Methods
+    // ============================== RSA Methods ==============================
 
     //Encrypt with string input and given key
     public byte[] encryptRSA(String input, Key key){
@@ -89,7 +89,7 @@ public class CryptoHelper{
         return gen.generateKeyPair();
     }
 
-    //AES methods
+    // ============================== AES methods ==============================
 
     public byte[] encryptAES(String input, Key key){
         byte[] out = null;
@@ -178,5 +178,34 @@ public class CryptoHelper{
         byte[] out = new byte[32];
         sha.doFinal(out, 0);
         return out;
+    }
+
+    // ============================== KeyRing methods ==============================
+
+    public boolean saveRing(KeyRing kr){
+        ObjectOutputStream outStream;
+        try{
+            outStream = new ObjectOutputStream(new FileOutputStream(kr.getAlias() + "_keys" + File.pathSeparatorChar + "keys.bin"));
+            outStream.writeObject(kr);
+            outStream.close();
+        }catch(Exception e){
+            System.err.println("Error saving KeyRing: " + e);
+        }
+        return true;
+    }
+
+    public KeyRing loadRing(KeyRing kr){
+        if(!kr.exists()){
+            return null;
+        }
+        KeyRing newKr = null;
+        ObjectInputStream inStream;
+        try{
+            inStream = new ObjectInputStream(new FileInputStream(kr.getAlias() + "_keys" + File.pathSeparatorChar + "keys.bin"));
+            newKr = (KeyRing) inStream.readObject();
+        }catch(Exception e){
+            System.err.println("Error loading KeyRing: " + e);
+        }
+        return newKr;
     }
 }
