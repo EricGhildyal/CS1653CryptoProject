@@ -31,31 +31,23 @@ import org.bouncycastle.crypto.agreement.DHBasicAgreement;
 
 public class FileThread extends Thread
 {
+	private FileServer my_fs;
 	private final Socket socket;
 	final ObjectInputStream input;
 	final ObjectOutputStream output;
 	BigInteger confidentialityKey;
 	BigInteger integrityKey;
 	CryptoHelper crypto;
-	KeyRing keyRing;
 
-	public FileThread(Socket _socket) throws IOException, ClassNotFoundException
+	public FileThread(Socket _socket, FileServer my_fs) throws IOException, ClassNotFoundException
 	{
+		this.my_fs = my_fs;
 		System.out.println("Setting up connection...");
 		crypto = new CryptoHelper();
-		// ring = new KeyRing("FileServer");
 		socket = _socket;
 		input = new ObjectInputStream(socket.getInputStream());
 		output = new ObjectOutputStream(socket.getOutputStream());
-		keyRing = new KeyRing("FileServer");
-		if(keyRing.exists()){
-			keyRing = crypto.loadRing(keyRing);
-		}else{ //create new ring
-			keyRing.init();
-			KeyPair kp = crypto.getNewKeypair();
-			keyRing.addKey("rsa_priv", kp.getPrivate());
-			keyRing.addKey("rsa_pub", kp.getPublic());
-		}
+
 	}
 
 	private boolean setupDH(Envelope message){
@@ -125,7 +117,7 @@ public class FileThread extends Thread
 							System.out.println("FAIL");
 					}
 				}
-				
+
 				// Handler to list files that this user is allowed to see
 				if(message.getMessage().equals("LFILES")){
 					ArrayList<String> list = listFiles(message, aesKey);
@@ -250,7 +242,7 @@ public class FileThread extends Thread
 				}
 				else if(message.getMessage().equals("DISCONNECT"))
 				{
-					crypto.saveRing(keyRing);
+					crypto.saveRing(my_fs.keyRing);
 					socket.close();
 					proceed = false;
 				}else{
@@ -267,7 +259,7 @@ public class FileThread extends Thread
 	}
 
 	private ArrayList<String> listFiles(Envelope message, Key aesKey){
-		ArrayList<String> list = new ArrayList<String>();	
+		ArrayList<String> list = new ArrayList<String>();
 		UserToken yourToken = crypto.extractToken(message, 0, aesKey);
 		byte[] hashedToken = crypto.decryptAESBytes((byte [])message.getObjContents().get(1), aesKey); //Extract signed token hash
 		//TODO check token
@@ -303,11 +295,11 @@ public class FileThread extends Thread
 				file.createNewFile();
 				FileOutputStream fos = new FileOutputStream(file);
 				System.out.printf("Successfully created file %s\n", remotePath.replace('/', '_'));
-	
+
 				response = new Envelope("READY"); //Success
 				output.reset();
 				output.writeObject(response);
-	
+
 				message = (Envelope)input.readObject();
 				while (message.getMessage().compareTo("CHUNK")==0) {
 					fos.write((byte[])message.getObjContents().get(0), 0, (Integer)message.getObjContents().get(1));
@@ -316,7 +308,7 @@ public class FileThread extends Thread
 					output.writeObject(response);
 					message = (Envelope)input.readObject();
 				}
-	
+
 				if(message.getMessage().compareTo("EOF")==0) {
 					System.out.printf("Transfer successful file %s\n", remotePath);
 					FileServer.fileList.addFile(yourToken.getSubject(), group, remotePath);

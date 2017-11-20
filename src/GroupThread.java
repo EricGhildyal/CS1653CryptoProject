@@ -38,36 +38,15 @@ public class GroupThread extends Thread
 	BigInteger confidentialityKey;
 	BigInteger integrityKey;
 	CryptoHelper crypto;
-	KeyRing keyRing;
 
 	public GroupThread(Socket _socket, GroupServer _gs, UserPasswordDB db) throws IOException, ClassNotFoundException
 	{
 		crypto = new CryptoHelper();
-		// ring = new KeyRing("GroupServer");
-		// KeyPair keyPair = crypto.getNewKeypair();
-		// KeyRing kr = new KeyRing("password");
-		// System.out.println(keyPair.getPrivate());
-		// kr.addKey("priv", keyPair.getPrivate());
-		// kr.addKey("pub", keyPair.getPublic());
-		// kr.saveRing(new File("groupkeyring"));
-		// kr.loadRing(new File("groupkeyring"));
-		// Key k = kr.getKey("priv");
-		// System.out.println(k);
-
 		socket = _socket;
 		my_gs = _gs;
 		my_db = db;
 		input = new ObjectInputStream(socket.getInputStream());
 		output = new ObjectOutputStream(socket.getOutputStream());
-		keyRing = new KeyRing("GroupServer");
-		if(keyRing.exists()){
-			keyRing = crypto.loadRing(keyRing);
-		}else{ //create new ring
-			keyRing.init();
-			KeyPair kp = crypto.getNewKeypair();
-			keyRing.addKey("rsa_priv", kp.getPrivate());
-			keyRing.addKey("rsa_pub", kp.getPublic());
-		}
 	}
 
 	private boolean setupDH(Envelope message){
@@ -339,7 +318,7 @@ public class GroupThread extends Thread
 					output.reset();
 					output.writeObject(response);
 				}else if(message.getMessage().equals("DISCONNECT")){ //Client wants to disconnect
-					crypto.saveRing(keyRing);
+					crypto.saveRing(my_gs.keyRing);
 					socket.close(); //Close the socket
 					proceed = false; //End this communication loop
 				}else{
@@ -409,7 +388,7 @@ public class GroupThread extends Thread
 	private ArrayList<String> listMembers(String groupName, UserToken token){
 		if(my_gs.groupList.isEmpty())
 			return null;
-		System.out.println(my_gs.groupList);	
+		System.out.println(my_gs.groupList);
 		for (Group g : my_gs.groupList) {
 			if(g.name.equals(groupName)) {				//Finds the group by name
 				return g.memberList;					//Returns the list of members in that group

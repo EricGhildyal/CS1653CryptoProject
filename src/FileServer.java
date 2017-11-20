@@ -9,29 +9,53 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.security.*;
 
 public class FileServer extends Server {
-	
+
 	public static final int SERVER_PORT = 4321;
 	public static FileList fileList;
-	
+	public static KeyRing keyRing;
+	public CryptoHelper crypto;
+
+
+
 	public FileServer() {
 		super(SERVER_PORT, "FilePile");
+		crypto = new CryptoHelper();
+		keyRing = new KeyRing("FileServer");
+		if(keyRing.exists()){
+			keyRing = crypto.loadRing(keyRing);
+		}else{ //create new ring
+			keyRing.init();
+			KeyPair kp = crypto.getNewKeypair();
+			keyRing.addKey("rsa_priv", kp.getPrivate());
+			keyRing.addKey("rsa_pub", kp.getPublic());
+		}
 	}
 
 	public FileServer(int _port) {
 		super(_port, "FilePile");
+		keyRing = new KeyRing("FileServer");
+		if(keyRing.exists()){
+			keyRing = crypto.loadRing(keyRing);
+		}else{ //create new ring
+			keyRing.init();
+			KeyPair kp = crypto.getNewKeypair();
+			keyRing.addKey("rsa_priv", kp.getPrivate());
+			keyRing.addKey("rsa_pub", kp.getPublic());
+		}
 	}
-	
+
 	public void start() {
 		String fileFile = "FileList.bin";
 		ObjectInputStream fileStream;
-		
+
 		//This runs a thread that saves the lists on program exit
 		Runtime runtime = Runtime.getRuntime();
 		Thread catchExit = new Thread(new ShutDownListenerFS());
 		runtime.addShutdownHook(catchExit);
-		
+
 		//Open user file to get user list
 		try
 		{
@@ -49,37 +73,37 @@ public class FileServer extends Server {
 			System.out.println("Error reading from FileList file: " + e);
 			System.exit(-1);
 		}
-		
+
 		File file = new File("shared_files");
 		if (file.mkdir()) {
 			 System.out.println("Created new shared_files directory");
 		}else if (file.exists()){
 			 System.out.println("Found shared_files directory");
 		}else{
-			 System.out.println("Error creating shared_files directory");				 
+			 System.out.println("Error creating shared_files directory");
 		}
-		
+
 		//Autosave Daemon. Saves lists every 5 minutes
 		AutoSaveFS aSave = new AutoSaveFS();
 		aSave.setDaemon(true);
 		aSave.start();
-		
+
 		boolean running = true;
 		try
-		{			
+		{
 			final ServerSocket serverSock = new ServerSocket(port);
 			System.out.printf("%s up and running\n", this.getClass().getName());
-			
+
 			Socket sock = null;
 			Thread thread = null;
-			
+
 			while(running)
 			{
 				sock = serverSock.accept();
-				thread = new FileThread(sock);
+				thread = new FileThread(sock, this);
 				thread.start();
 			}
-			
+
 			System.out.printf("%s shut down\n", this.getClass().getName());
 			serverSock.close();
 		}

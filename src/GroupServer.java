@@ -6,6 +6,7 @@
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.io.*;
+import java.security.*;
 import java.util.*;
 
 
@@ -15,15 +16,38 @@ public class GroupServer extends Server {
 	public UserList userList;
   public ArrayList<Group> groupList = new ArrayList<>();
 	public String fname = "";
+	public static KeyRing keyRing;
+	public CryptoHelper crypto;
+
+
 
 	public GroupServer(String dbFileName) {
 		super(SERVER_PORT, "ALPHA");
+		crypto = new CryptoHelper();
 		fname = dbFileName;
+		keyRing = new KeyRing("GroupServer");
+		if(keyRing.exists()){
+			keyRing = crypto.loadRing(keyRing);
+		}else{ //create new ring
+			keyRing.init();
+			KeyPair kp = crypto.getNewKeypair();
+			keyRing.addKey("rsa_priv", kp.getPrivate());
+			keyRing.addKey("rsa_pub", kp.getPublic());
+		}
 	}
 
 	public GroupServer(int _port, String dbFileName) {
 		super(_port, "ALPHA");
 		fname = dbFileName;
+		keyRing = new KeyRing("GroupServer");
+		if(keyRing.exists()){
+			keyRing = crypto.loadRing(keyRing);
+		}else{ //create new ring
+			keyRing.init();
+			KeyPair kp = crypto.getNewKeypair();
+			keyRing.addKey("rsa_priv", kp.getPrivate());
+			keyRing.addKey("rsa_pub", kp.getPublic());
+		}
 	}
 
 	public void start() {
