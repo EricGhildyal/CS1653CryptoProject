@@ -10,12 +10,13 @@ For phase three of this project, we were tasked with creating measures to protec
 **Description of threat:**  
 The possibility of an attacker to reorder, replay, or modify messages is dangerous for our system. Reorder and replay can cause the user and the server to believe they have been authenticated when they haven’t been, and modification can make the server believe it is connected to a different user than it actually is. These are important threats to protect against in order to have a properly secured system.  
 **Mechanism:**  
-To protect against Reorder attacks and same-session replay attacks every message sent will be sent with a time stamp. We are assuming timestamps always increase.
-When a message is received it will be checked against the current time to make sure it is recent. Recent means within 10 minutes.
+To protect against Reorder attacks and same-session replay attacks every message sent will be sent with a message number. We are assuming message numbers always increase.
+When a message is received it will be checked against the other received message numbers to make sure that all previous messages have been received. We will have an arraylist of booleans and once a message has been received that index will be set to true.
 Replay attacks are also protected by using a session key obtained through diffie hellman as explained in the previous phase.
-To protect against modification, each message sent is encrypted with the session key.  
+To protect against modification, each message sent is also sent with a c value that can be recomputed by encrypting the hash of the message using sha256 and verifying the numbers match. If they match then you know the message has not been modified.
+
 **Arguments:**  
-Reorder attacks will be protected by timestamps since once all messages are received you can place them in order by time sent. This also protects against same-session replay attacks because the messages will stop working after enough time for the operation(accounting for possible desynced clocks) to occur. For multi-session replay attacks a session key protects against since no messages are encrypted the same way. This also prevents modification since there is no way for them to decrypt/encrypt their own messages without guessing the session key.
+Reorder attacks will be protected by numbers since once all messages are received you can use them only once all previous messages have been used. This also protects against same-session replay attacks because the messages will stop working after they have been used for the operation to occur. For multi-session replay attacks a session key protects against since no messages are encrypted the same way. This also prevents modification since there is no way for them to decrypt/encrypt their own messages without guessing the session key. Since they are encrypted with a session key no one other then the server or you can compute the same hash as the c or d value so if they are not the same you know the message has been modified.
 
 
 ![T5](https://github.com/EricGhildyal/CS1653CryptoProject/blob/master/reports/images/t5.jpg)
