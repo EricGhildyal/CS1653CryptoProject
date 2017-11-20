@@ -15,7 +15,7 @@ public class GroupClient extends Client implements GroupClientInterface {
 
 	public boolean connect(final String server, final int port){
 		boolean ret = super.connect(server, port);
-		aesKey = new SecretKeySpec(this.sKey.toByteArray(), "AES");
+		aesKey = new SecretKeySpec(this.confidentialityKey.toByteArray(), "AES");
 		return ret;
 	}
 
@@ -36,6 +36,7 @@ public class GroupClient extends Client implements GroupClientInterface {
 			output.writeObject(message);
 
 			//Get the response from the server
+			input.readObject();		//TODO Figure out why DHMSGS is sent twice
 			response = (Envelope)input.readObject();
 			System.out.println("gcli: " + response.getMessage());
 			//Successful response
