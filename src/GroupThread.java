@@ -130,7 +130,7 @@ public class GroupThread extends Thread
 						output.reset();
 						output.writeObject(response);
 					}else{
-						UserToken yourToken = createToken(username); //Create a token
+						UserToken yourToken = createGroupServerToken(username); //Create a token
 						System.out.println("bruhhhh");
 						//Respond to the client. On error, the client will receive a null token
 						response = new Envelope("OK");
@@ -430,18 +430,22 @@ public class GroupThread extends Thread
 	}
 
 	//Method to create tokens
-	private UserToken createToken(String username)
+	private UserToken createGroupServerToken(String username)
 	{
 		//Check that user exists
 		System.out.println("In createToken");
 		if(my_gs.userList.checkUser(username)){
 			System.out.println("nameExists");
 			//Issue a new token with server's name, user's name, and user's groups
-			UserToken yourToken = new Token(my_gs.name, username, my_gs.userList.getUserGroups(username));
+			UserToken yourToken = new Token(my_gs.name, username, my_gs.userList.getUserGroups(username), my_gs.keyRing.getKey("rsa_pub"));
+			if(yourToken.getTarget() == null){
+				System.out.println("Error finding group servers public key!");
+				return null;
+			}
 			System.out.println(yourToken);
 			return yourToken;
 		}else{
-			System.out.println("Name doesnt exists");
+			System.out.println("Name doesn't exists");
 			return null;
 		}
 	}
@@ -531,7 +535,7 @@ public class GroupThread extends Thread
 					for(int index = 0; index < deleteOwnedGroup.size(); index++)
 					{
 						//Use the delete group method. Token must be created for this action
-						deleteGroup(deleteOwnedGroup.get(index), new Token(my_gs.name, username, deleteOwnedGroup));
+						deleteGroup(deleteOwnedGroup.get(index), new Token(my_gs.name, username, deleteOwnedGroup, yourToken.getTarget()));
 					}
 
 					//Delete the user from the user list

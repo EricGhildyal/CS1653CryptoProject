@@ -1,19 +1,28 @@
 import java.util.List;
 import java.util.ArrayList;
 import java.util.*;
+import java.security.Key;
+import org.apache.commons.codec.binary.Base64;
+
 
 public class Token implements UserToken{
 
   private String server, username;
   private ArrayList<String> groups;
-  private byte[] target;
+  private String target;
 
-//TODO uncomment
-  public Token(String server, String username, ArrayList<String> groups/*, byte[] target*/){
+  public Token(String server, String username, ArrayList<String> groups, Key target){
     this.server = server;
     this.username = username;
     this.groups = groups;
-    //this.target = target;
+    this.target = Base64.encodeBase64String(target.getEncoded());
+  }
+
+  public Token(String server, String username, ArrayList<String> groups, String target){
+    this.server = server;
+    this.username = username;
+    this.groups = groups;
+    this.target = target;
   }
 
   /**
@@ -38,7 +47,7 @@ public class Token implements UserToken{
    * @return The issuer of this token
    *
    */
-  public byte[] getTarget(){
+  public String getTarget(){
     return this.target;
   }
 
@@ -71,7 +80,8 @@ public class Token implements UserToken{
   public String toString() {
 	 return String.format("Server:%s\n"
 	  						   + "Username:%s\n"
-	  						   + "Groups:%s\n", this.server, this.username, this.groups);
+	  						   + "Groups:%s\n"
+                   + "Target:%s\n", this.server, this.username, this.groups, this.target);
   }
 
 	public String toUniqueString() {

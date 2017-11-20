@@ -12,7 +12,7 @@ import org.apache.commons.codec.binary.Base64;
 
 
 public class CryptoHelper{
-    
+
     private static Cipher rsaCipher = null;
     private static Cipher aesCipher = null;
 
@@ -148,7 +148,8 @@ public class CryptoHelper{
 			if((i % 2) != 0)
 				trial.add(trial.size(), grpss[i]);
 		}
-		UserToken yourToken = (UserToken)new Token(spl[1], spl[3], trial);
+    String target = spl[7];
+		UserToken yourToken = (UserToken)new Token(spl[1], spl[3], trial, spl[7]);
 		return yourToken;
     }
 
