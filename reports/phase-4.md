@@ -28,8 +28,10 @@ Reorder attacks will be protected by timestamps since once all messages are rece
 File servers are important in the notion of a group file system, but since they are not trusted, there is a big possibility they will attempt to steal files and leak them to other users or administrators. This threats causes a complete breakdown of the security of our system, and therefore is very important to protect against.
 **Mechanism:**  
 When a group is created, a 256 bit AES key is generated to represent that group.
-The generated key, encrypted by each user’s session key, is sent to all the group members when they connect to the group server if it has changed.
-When a user is deleted from a group, files will be re-encrypted and a new key will be generated and sent to all users of the group.
+The generated key will then be entered into the user's KeyRing with the correct version number
+A KeyRing is a wrapper class for a list of keys, but has the ability to reference multiple keys for each group/reference string.
+When a file is requested, it will be sent with a version number that corresponds to a key version that the KeyRing stores
+When a user is deleted from a group, a new key will be generated and sent to all users of the group to be inserted into their KeyRing as a secondary key for the same group.
 **Arguments:**  
 This mechanism makes sure all members of a group have the same key and that the key is sent in a secure manner. In order to keep every user up to date and prevent old users from snooping, a new key will be generated every time a user leaves a group. We are using a 256 bit AES key because it is still secure.
 
