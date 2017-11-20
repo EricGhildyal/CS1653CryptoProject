@@ -24,6 +24,15 @@ public interface UserToken
      */
     public String getIssuer();
 
+    /**
+     * This method should return a byte array containing the public key of the
+     * server that this key should be user for. For instance, if Alice contacts
+     * Server1 looking for a key for Server2, this will return Server2's public key,
+     * as provided by Alice in her request.
+     * @return The issuer of this token
+     *
+     */
+    public byte[] getTarget();
 
     /**
      * This method should return a string indicating the name of the

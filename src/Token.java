@@ -6,12 +6,14 @@ public class Token implements UserToken{
 
   private String server, username;
   private ArrayList<String> groups;
+  private byte[] target;
 
-
-  public Token(String server, String username, ArrayList<String> groups){
+//TODO uncomment
+  public Token(String server, String username, ArrayList<String> groups/*, byte[] target*/){
     this.server = server;
     this.username = username;
     this.groups = groups;
+    //this.target = target;
   }
 
   /**
@@ -26,6 +28,18 @@ public class Token implements UserToken{
    */
   public String getIssuer(){
     return this.server;
+  }
+
+  /**
+   * This method should return a byte array containing the public key of the
+   * server that this key should be user for. For instance, if Alice contacts
+   * Server1 looking for a key for Server2, this will return Server2's public key,
+   * as provided by Alice in her request.
+   * @return The issuer of this token
+   *
+   */
+  public byte[] getTarget(){
+    return this.target;
   }
 
   /**
