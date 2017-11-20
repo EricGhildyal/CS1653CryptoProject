@@ -2,6 +2,7 @@
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Arrays;
 import javax.crypto.spec.SecretKeySpec;
 import java.util.ArrayList;
 import java.security.*;
@@ -30,10 +31,18 @@ public class GroupClient extends Client implements GroupClientInterface {
 			message = new Envelope("GET");
 			byte [] usrName = crypto.encryptAES(username, aesKey);
 			byte [] pass = crypto.encryptAES(password, aesKey);
+			
 			message.addObject(usrName); //Add user name string
 			message.addObject(pass); //Add password
+			
 			output.reset();
 			output.writeObject(message);
+			byte [] a = crypto.HMAC(this.integrityKey.toByteArray(), message);
+			message = new Envelope("INTEGRITY");
+			message.addObject(a);
+			output.reset();
+			output.writeObject(message);
+			
 
 			//Get the response from the server
 			input.readObject();		//TODO Figure out why DHMSGS is sent twice
@@ -83,6 +92,11 @@ public class GroupClient extends Client implements GroupClientInterface {
 				message.addObject(crypto.encryptAES(tokTuple.hashedToken, aesKey));//Add the signed token hash
 				output.reset();
 				output.writeObject(message);
+				byte [] a = crypto.HMAC(this.integrityKey.toByteArray(), message);
+				message = new Envelope("INTEGRITY");
+				message.addObject(a);
+				output.reset();
+				output.writeObject(message);
 
 				response = (Envelope)input.readObject();
 
@@ -114,6 +128,11 @@ public class GroupClient extends Client implements GroupClientInterface {
 				message.addObject(crypto.encryptAES(username, aesKey)); //Add user name
 				message.addObject(crypto.encryptAES(tokTuple.tok.toString(), aesKey));  //Add requester's token
 				message.addObject(crypto.encryptAES(tokTuple.hashedToken, aesKey));//Add the signed token hash
+				output.reset();
+				output.writeObject(message);
+				byte [] a = crypto.HMAC(this.integrityKey.toByteArray(), message);
+				message = new Envelope("INTEGRITY");
+				message.addObject(a);
 				output.reset();
 				output.writeObject(message);
 
@@ -148,6 +167,11 @@ public class GroupClient extends Client implements GroupClientInterface {
 				message.addObject(crypto.encryptAES(tokTuple.hashedToken, aesKey));//Add the signed token hash
 				output.reset();
 				output.writeObject(message);
+				byte [] a = crypto.HMAC(this.integrityKey.toByteArray(), message);
+				message = new Envelope("INTEGRITY");
+				message.addObject(a);
+				output.reset();
+				output.writeObject(message);
 
 				response = (Envelope)input.readObject();
 				//If server indicates success, return true
@@ -175,6 +199,11 @@ public class GroupClient extends Client implements GroupClientInterface {
 				message.addObject(crypto.encryptAES(groupname, aesKey)); //Add the group name string
 				message.addObject(crypto.encryptAES(tokTuple.tok.toString(), aesKey)); //Add the requester's token
 				message.addObject(crypto.encryptAES(tokTuple.hashedToken, aesKey));//Add the signed token hash
+				output.reset();
+				output.writeObject(message);
+				byte [] a = crypto.HMAC(this.integrityKey.toByteArray(), message);
+				message = new Envelope("INTEGRITY");
+				message.addObject(a);
 				output.reset();
 				output.writeObject(message);
 
@@ -209,6 +238,11 @@ public class GroupClient extends Client implements GroupClientInterface {
 			 message.addObject(grp); //Add group name string
 			 message.addObject(tok); //Add requester's token
 			 message.addObject(crypto.encryptAES(tokTuple.hashedToken, aesKey));//Add the signed token hash
+			 output.reset();
+			 output.writeObject(message);
+			 byte [] a = crypto.HMAC(this.integrityKey.toByteArray(), message);
+			 message = new Envelope("INTEGRITY");
+			 message.addObject(a);
 			 output.reset();
 			 output.writeObject(message);
 
@@ -246,6 +280,11 @@ public class GroupClient extends Client implements GroupClientInterface {
 				message.addObject(crypto.encryptAES(tokTuple.hashedToken, aesKey));//Add the signed token hash
 				output.reset();
 				output.writeObject(message);
+				byte [] a = crypto.HMAC(this.integrityKey.toByteArray(), message);
+				message = new Envelope("INTEGRITY");
+				message.addObject(a);
+				output.reset();
+				output.writeObject(message);
 
 				response = (Envelope)input.readObject();
 				//If server indicates success, return true
@@ -276,6 +315,11 @@ public class GroupClient extends Client implements GroupClientInterface {
 				message.addObject(crypto.encryptAES(groupname, aesKey)); //Add the group name string
 				message.addObject(crypto.encryptAES(tokTuple.tok.toString(), aesKey)); //Add the requester's token
 				message.addObject(crypto.encryptAES(tokTuple.hashedToken, aesKey));//Add the signed token hash
+				output.reset();
+				output.writeObject(message);
+				byte [] a = crypto.HMAC(this.integrityKey.toByteArray(), message);
+				message = new Envelope("INTEGRITY");
+				message.addObject(a);
 				output.reset();
 				output.writeObject(message);
 

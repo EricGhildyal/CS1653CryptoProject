@@ -41,6 +41,11 @@ public class FileClient extends Client implements FileClientInterface {
 	    try {
 			output.reset();
 			output.writeObject(env);
+			byte [] a = crypto.HMAC(this.integrityKey.toByteArray(), message);
+			message = new Envelope("INTEGRITY");
+			message.addObject(a);
+			output.reset();
+			output.writeObject(message);
 		    env = (Envelope)input.readObject();
 
 			if (env.getMessage().compareTo("OK")==0) {
@@ -79,7 +84,11 @@ public class FileClient extends Client implements FileClientInterface {
 				env.addObject(crypto.encryptAES(tokTuple.hashedToken, aesKey));//Add the signed token hash
 				output.reset();
 				output.writeObject(env);
-
+				byte [] a = crypto.HMAC(this.integrityKey.toByteArray(), message);
+				message = new Envelope("INTEGRITY");
+				message.addObject(a);
+				output.reset();
+				output.writeObject(message);
 				env = (Envelope)input.readObject();
 
 				while (env.getMessage().compareTo("CHUNK")==0) {

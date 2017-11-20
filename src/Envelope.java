@@ -30,4 +30,12 @@ public class Envelope implements java.io.Serializable {
 		objContents.add(object);
 	}
 
+	public String toString(){
+		String ret = msg;
+		for(Object x: objContents){
+			ret += x.toString();
+		}
+		return ret;
+	}
+
 }

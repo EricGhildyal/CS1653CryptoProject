@@ -1,4 +1,5 @@
 import java.math.BigInteger;
+import java.nio.ByteBuffer;
 import java.security.*;
 import javax.crypto.*;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
@@ -15,6 +16,7 @@ public class CryptoHelper{
     
     private static Cipher rsaCipher = null;
     private static Cipher aesCipher = null;
+    
 
     public CryptoHelper(){
         Security.insertProviderAt(new BouncyCastleProvider(), 1);
@@ -179,4 +181,93 @@ public class CryptoHelper{
         sha.doFinal(out, 0);
         return out;
     }
+    public byte[] sha256Bytes(byte [] s){
+        SHA256Digest sha = new SHA256Digest();
+        sha.update(s, 0, s.length);
+        byte[] out = new byte[64];
+        sha.doFinal(out, 0);
+        return out;
+    }
+    private byte[] serialize(Object obj) throws IOException {
+        try(ByteArrayOutputStream b = new ByteArrayOutputStream()){
+            try(ObjectOutputStream o = new ObjectOutputStream(b)){
+                o.writeObject(obj);
+            }
+            catch(Exception e){
+                
+            }
+            return b.toByteArray();
+        }
+        catch(Exception e){
+            
+        }
+        return null;
+    }
+
+    
+    public byte [] HMAC(byte [] key, Envelope message){
+        byte [] ret = null;
+        byte [] mes = null;
+        try{
+            mes = serialize((Object) message);
+        }catch(Exception e){
+
+        }
+
+        //System.out.println(key.length);
+        if(key.length > 64){
+            key = sha256Bytes(key);
+        }
+        if(key.length < 64){
+            while(key.length < 64)
+                key = padArray(key);
+        }
+        //System.out.println(key.length);
+        //System.out.println(key.toString());
+        //System.out.println(Arrays.toString(mes));
+        ByteBuffer wrap = ByteBuffer.wrap(key);
+        int k = wrap.getInt();
+        byte [] opad = getOpad(k);
+        byte [] ipad = getIpad(k);
+        try{
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            out.write(ipad);
+            out.write(mes);
+            byte [] c = out.toByteArray();
+            byte [] firstPart = sha256Bytes(opad);
+            byte [] secondPart = sha256Bytes(c);
+            out.reset();
+            out.write(firstPart);
+            out.write(secondPart);
+            return out.toByteArray();
+        }
+        catch(Exception e){
+
+        }
+        return null;
+    }
+    private byte [] getOpad(int key){
+        int ret = key ^(0x5c * 64);
+        ByteBuffer wrap = ByteBuffer.allocate(32);
+        wrap.putInt(ret);
+        return wrap.array();
+
+    }
+    private byte [] getIpad(int key){
+        int ret = key ^(0x36 * 64);
+        ByteBuffer wrap = ByteBuffer.allocate(32);
+        wrap.putInt(ret);
+        return wrap.array();
+    }
+    private byte [] padArray(byte [] arr){
+        byte [] ret = new byte [64];
+        for(int i = 0; i < arr.length; i++){
+            ret[i] = arr[i];
+        }
+        for(int i = ret.length-arr.length; i < ret.length; i++){
+            ret[i] = 0;
+        }
+        //System.out.println(Arrays.toString(ret));
+        return ret;
+   }
 }
