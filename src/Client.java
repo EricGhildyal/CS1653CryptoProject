@@ -1,9 +1,8 @@
 import java.net.Socket;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
+import java.io.*;
 import java.math.BigInteger;
 import java.security.*;
-import java.util.ArrayList;
+import java.util.*;
 import org.bouncycastle.crypto.generators.*;
 import org.bouncycastle.crypto.params.*;
 import org.bouncycastle.crypto.KeyGenerationParameters;
@@ -14,16 +13,9 @@ import org.bouncycastle.crypto.params.DHKeyGenerationParameters;
 import org.bouncycastle.crypto.generators.DHKeyPairGenerator;
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair;
 import org.bouncycastle.crypto.params.AsymmetricKeyParameter;
-import java.util.Random;
 import org.bouncycastle.asn1.x9.DHPublicKey;
 import org.bouncycastle.crypto.agreement.DHAgreement;
 import org.bouncycastle.crypto.agreement.DHBasicAgreement;
-
-
-//import javax.crypto.interfaces.DHPublicKey;
-//import javax.crypto.spec.DHParameterSpec;
-
-import java.io.NotSerializableException;
 
 public abstract class Client {
 
@@ -34,6 +26,7 @@ public abstract class Client {
 	protected Socket sock;
 	protected ObjectOutputStream output;
 	protected ObjectInputStream input;
+
 	public BigInteger confidentialityKey;
 	public BigInteger integrityKey;
 
@@ -52,6 +45,8 @@ public abstract class Client {
 			input = new ObjectInputStream(this.sock.getInputStream());
 			//run Diffie Hellman method to start connection
 			setupDH();
+
+
 		}catch(java.net.SocketException s){
 			//do nothing
 		}catch(Exception e){
@@ -71,7 +66,7 @@ public abstract class Client {
 			DHParameters params = paramGen.generateParameters();
 			BigInteger g = params.getG();
 			BigInteger p = params.getP();
-			
+
 			//generate keys and send p, g, and public key to server
 			DHKeyGenerationParameters keyGenParams = new DHKeyGenerationParameters(secRand, params);
 			DHKeyPairGenerator keyGen = new DHKeyPairGenerator();
@@ -103,7 +98,7 @@ public abstract class Client {
 			keyAgree = new DHBasicAgreement();
 			keyAgree.init(clientIntKeys.getPrivate());
 			integrityKey = keyAgree.calculateAgreement(servPub);
-			
+
 			output.reset();
 		}catch(Exception e){
 			System.out.println("Error during Diffie Hellman exchange: " + e);
