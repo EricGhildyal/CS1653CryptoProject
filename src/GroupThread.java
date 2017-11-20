@@ -96,8 +96,7 @@ public class GroupThread extends Thread
 			keyAgree = new DHBasicAgreement();
 			keyAgree.init(serverIntKeys.getPrivate());
 			integrityKey = keyAgree.calculateAgreement(clientPub);
-			System.out.println(confidentialityKey);
-			System.out.println(integrityKey);
+			
 			output.reset();
 		}catch(Exception e){
 			System.out.println("Error during Diffie Hellman exchange: " + e);
@@ -138,17 +137,14 @@ public class GroupThread extends Thread
 					String username = crypto.decryptAES((byte[])message.getObjContents().get(0), aesKey); //Get the username
 					String password = crypto.decryptAES((byte[])message.getObjContents().get(1), aesKey); //Get the password
 					
-					byte [] integrity = crypto.HMAC(integrityKey.toByteArray(), message);
 					
-					Envelope integ = (Envelope)input.readObject();
-					ArrayList<Object> check = integ.getObjContents();
-					byte [] test = (byte [])check.get(0);
 					
-					if(!Arrays.equals(test, integrity)){
+					if(!crypto.verify(integrityKey, message, input)){
 						response = new Envelope("FAIL");
 						response.addObject(null);
 						output.reset();
 						output.writeObject(response);
+						crypto.getHash(integrityKey, response, output);
 					}
 					else{
 					
@@ -158,6 +154,7 @@ public class GroupThread extends Thread
 							response.addObject(null);
 							output.reset();
 							output.writeObject(response);
+							crypto.getHash(integrityKey, response, output);
 						}else{
 							UserToken yourToken = createToken(username); //Create a token
 							//Respond to the client. On error, the client will receive a null token
@@ -175,19 +172,14 @@ public class GroupThread extends Thread
 							}
 							output.reset();
 							output.writeObject(response);
+							crypto.getHash(integrityKey, response, output);
 						}
 					}
 				}else if(message.getMessage().equals("CUSER")){ //Client wants to create a user
 					if(message.getObjContents().size() < 4){
 						response = new Envelope("FAIL");
 					}else{
-						byte [] integrity = crypto.HMAC(integrityKey.toByteArray(), message);
-						
-						Envelope integ = (Envelope)input.readObject();
-						ArrayList<Object> check = integ.getObjContents();
-						byte [] test = (byte [])check.get(0);
-						
-						if(!Arrays.equals(test, integrity)){
+						if(!crypto.verify(integrityKey, message, input)){
 							response = new Envelope("FAIL");
 							/*response.addObject(null);
 							output.reset();
@@ -213,17 +205,13 @@ public class GroupThread extends Thread
 					}
 					output.reset();
 					output.writeObject(response);
+					crypto.getHash(integrityKey, response, output);
 				}
 				else if(message.getMessage().equals("DUSER")){ //Client wants to delete a user
 					if(message.getObjContents().size() < 2){
 						response = new Envelope("FAIL");
 					}else{
-						byte [] integrity = crypto.HMAC(integrityKey.toByteArray(), message);
-						
-						Envelope integ = (Envelope)input.readObject();
-						ArrayList<Object> check = integ.getObjContents();
-						byte [] test = (byte [])check.get(0);
-						if(!Arrays.equals(test, integrity)){
+						if(!crypto.verify(integrityKey, message, input)){
 							response = new Envelope("FAIL");
 							/*response.addObject(null);
 							output.reset();
@@ -248,17 +236,13 @@ public class GroupThread extends Thread
 					}
 					output.reset();
 					output.writeObject(response);
+					crypto.getHash(integrityKey, response, output);
 				}
 				else if(message.getMessage().equals("CGROUP")){ //Client wants to create a group
 					if(message.getObjContents().size() < 3){ //check for valid number of args
 						response = new Envelope("FAIL");
 					}else{
-						byte [] integrity = crypto.HMAC(integrityKey.toByteArray(), message);
-						
-						Envelope integ = (Envelope)input.readObject();
-						ArrayList<Object> check = integ.getObjContents();
-						byte [] test = (byte [])check.get(0);
-						if(!Arrays.equals(test, integrity)){
+						if(!crypto.verify(integrityKey, message, input)){
 							response = new Envelope("FAIL");
 							/*response.addObject(null);
 							output.reset();
@@ -285,17 +269,13 @@ public class GroupThread extends Thread
 					}
 					output.reset();
 					output.writeObject(response);
+					crypto.getHash(integrityKey, response, output);
 				}
 				else if(message.getMessage().equals("DGROUP")){ //Client wants to delete a group
 					if(message.getObjContents().size() < 3){ //check for valid number of args
 						response = new Envelope("FAIL");
 					}else{
-						byte [] integrity = crypto.HMAC(integrityKey.toByteArray(), message);
-						
-						Envelope integ = (Envelope)input.readObject();
-						ArrayList<Object> check = integ.getObjContents();
-						byte [] test = (byte [])check.get(0);
-						if(!Arrays.equals(test, integrity)){
+						if(!crypto.verify(integrityKey, message, input)){
 							response = new Envelope("FAIL");
 							/*response.addObject(null);
 							output.reset();
@@ -320,16 +300,12 @@ public class GroupThread extends Thread
 					}
 					output.reset();
 					output.writeObject(response);
+					crypto.getHash(integrityKey, response, output);
 				}else if(message.getMessage().equals("LMEMBERS")){ //Client wants a list of members in a group
 					if(message.getObjContents().size() < 3){ //check for valid number of args
 						response = new Envelope("FAIL");
 					}else{
-						byte [] integrity = crypto.HMAC(integrityKey.toByteArray(), message);
-						
-						Envelope integ = (Envelope)input.readObject();
-						ArrayList<Object> check = integ.getObjContents();
-						byte [] test = (byte [])check.get(0);
-						if(!Arrays.equals(test, integrity)){
+						if(!crypto.verify(integrityKey, message, input)){
 							response = new Envelope("FAIL");
 							/*response.addObject(null);
 							output.reset();
@@ -359,17 +335,13 @@ public class GroupThread extends Thread
 					}
 					output.reset();
 					output.writeObject(response);
+					crypto.getHash(integrityKey, response, output);
 				}
 				else if(message.getMessage().equals("AUSERTOGROUP")){ //Client wants to add user to a group
 					if(message.getObjContents().size() < 4){ //check for valid number of args
 						response = new Envelope("FAIL");
 					}else{
-						byte [] integrity = crypto.HMAC(integrityKey.toByteArray(), message);
-						
-						Envelope integ = (Envelope)input.readObject();
-						ArrayList<Object> check = integ.getObjContents();
-						byte [] test = (byte [])check.get(0);
-						if(!Arrays.equals(test, integrity)){
+						if(!crypto.verify(integrityKey, message, input)){
 							response = new Envelope("FAIL");
 							/*response.addObject(null);
 							output.reset();
@@ -397,17 +369,13 @@ public class GroupThread extends Thread
 					}
 					output.reset();
 					output.writeObject(response);
+					crypto.getHash(integrityKey, response, output);
 				}
 				else if(message.getMessage().equals("RUSERFROMGROUP")){ //Client wants to remove user from a group
 					if(message.getObjContents().size() < 4){ //check for valid number of args
 						response = new Envelope("FAIL");
 					}else{
-						byte [] integrity = crypto.HMAC(integrityKey.toByteArray(), message);
-						
-						Envelope integ = (Envelope)input.readObject();
-						ArrayList<Object> check = integ.getObjContents();
-						byte [] test = (byte [])check.get(0);
-						if(!Arrays.equals(test, integrity)){
+						if(!crypto.verify(integrityKey, message, input)){
 							response = new Envelope("FAIL");
 							/*response.addObject(null);
 							output.reset();
@@ -439,6 +407,7 @@ public class GroupThread extends Thread
 					}
 					output.reset();
 					output.writeObject(response);
+					crypto.getHash(integrityKey, response, output);
 				}else if(message.getMessage().equals("DISCONNECT")){ //Client wants to disconnect
 					socket.close(); //Close the socket
 					proceed = false; //End this communication loop

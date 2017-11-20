@@ -85,8 +85,7 @@ public class FileThread extends Thread
 			keyAgree = new DHBasicAgreement();
 			keyAgree.init(serverIntKeys.getPrivate());
 			integrityKey = keyAgree.calculateAgreement(clientPub);
-			System.out.println(confidentialityKey);
-			System.out.println(integrityKey);
+			
 			output.reset();
 		}catch(Exception e){
 			System.out.println("Error during Diffie Hellman exchange: " + e);
@@ -120,12 +119,7 @@ public class FileThread extends Thread
 				
 				// Handler to list files that this user is allowed to see
 				if(message.getMessage().equals("LFILES")){
-					byte [] integrity = crypto.HMAC(integrityKey.toByteArray(), message);
-					
-					Envelope integ = (Envelope)input.readObject();
-					ArrayList<Object> check = integ.getObjContents();
-					byte [] test = (byte [])check.get(0);
-					if(!Arrays.equals(test, integrity)){
+					if(!crypto.verify(integrityKey, message, input)){
 						response = new Envelope("FAIL-MESSAGEMODIFIED");
 						/*response.addObject(null);
 						output.reset();
@@ -139,6 +133,7 @@ public class FileThread extends Thread
 					}
 					output.reset();
 					output.writeObject(response);
+					crypto.getHash(integrityKey, response, output);
 				}
 				/*if(message.getMessage().equals("DHMSGS")){
 					setupDH(message);
@@ -148,12 +143,7 @@ public class FileThread extends Thread
 					if(message.getObjContents().size() < 4){
 						response = new Envelope("FAIL-BADCONTENTS");
 					}else{
-						byte [] integrity = crypto.HMAC(integrityKey.toByteArray(), message);
-						
-						Envelope integ = (Envelope)input.readObject();
-						ArrayList<Object> check = integ.getObjContents();
-						byte [] test = (byte [])check.get(0);
-						if(!Arrays.equals(test, integrity)){
+						if(!crypto.verify(integrityKey, message, input)){
 							response = new Envelope("FAIL-MESSAGEMODIFIED");
 							/*response.addObject(null);
 							output.reset();
@@ -177,18 +167,16 @@ public class FileThread extends Thread
 					}
 					output.reset();
 					output.writeObject(response);
+					crypto.getHash(integrityKey, response, output);
+					
 				}
 				else if (message.getMessage().compareTo("DOWNLOADF")==0) {
-					byte [] integrity = crypto.HMAC(integrityKey.toByteArray(), message);
-					
-					Envelope integ = (Envelope)input.readObject();
-					ArrayList<Object> check = integ.getObjContents();
-					byte [] test = (byte [])check.get(0);
-					if(!Arrays.equals(test, integrity)){
+					if(!crypto.verify(integrityKey, message, input)){
 						response = new Envelope("FAIL");
 						/*response.addObject(null);*/
 						output.reset();
 						output.writeObject(response);
+						crypto.getHash(integrityKey, response, output);
 					}
 					else{
 						String remotePath = crypto.decryptAES((byte [])message.getObjContents().get(0), aesKey);
@@ -201,6 +189,7 @@ public class FileThread extends Thread
 							message = new Envelope("ERROR_FILEMISSING");
 							output.reset();
 							output.writeObject(message);
+							crypto.getHash(integrityKey, message, output);
 
 						}
 						else if (!t.getGroups().contains(sf.getGroup())){
@@ -208,6 +197,7 @@ public class FileThread extends Thread
 							message = new Envelope("ERROR_PERMISSION");
 							output.reset();
 							output.writeObject(message);
+							crypto.getHash(integrityKey, message, output);
 						}else{
 							try{
 								File f = new File("shared_files/_"+remotePath.replace('/', '_'));
@@ -216,6 +206,7 @@ public class FileThread extends Thread
 									message = new Envelope("ERROR_NOTONDISK");
 									output.reset();
 									output.writeObject(message);
+									crypto.getHash(integrityKey, message, output);
 								}else {
 									@SuppressWarnings("resource")
 									FileInputStream fis = new FileInputStream(f);
@@ -241,25 +232,44 @@ public class FileThread extends Thread
 										//message.addObject(new Integer(n));
 										output.reset();
 										output.writeObject(message);
+										crypto.getHash(integrityKey, message, output);
 										message = (Envelope)input.readObject();
+										if(!crypto.verify(integrityKey, message, input)){
+											response = new Envelope("FAIL-MESSAGEMODIFIED");
+											/*response.addObject(null);
+											output.reset();
+											output.writeObject(response);*/
+											break;
+										}
 									}
 									while (fis.available()>0);
 									//If server indicates success, return the member list
-									if(message.getMessage().compareTo("DOWNLOADF")==0){
-										message = new Envelope("EOF");
-										output.reset();
-										output.writeObject(message);
+										if(message.getMessage().compareTo("DOWNLOADF")==0){
+											message = new Envelope("EOF");
+											output.reset();
+											output.writeObject(message);
+											crypto.getHash(integrityKey, message, output);
 
-										message = (Envelope)input.readObject();
-										if(message.getMessage().compareTo("OK")==0) {
-											System.out.printf("File data upload successful\n");
+											message = (Envelope)input.readObject();
+											if(!crypto.verify(integrityKey, message, input)){
+												response = new Envelope("FAIL-MESSAGEMODIFIED");
+												System.out.println("Upload Failed - Message Modified");
+												/*response.addObject(null);
+												output.reset();
+												output.writeObject(response);*/
+												break;
+											}
+											else{
+												if(message.getMessage().compareTo("OK")==0) {
+													System.out.printf("File data upload successful\n");
+												}else{
+													System.out.printf("Upload failed: %s\n", message.getMessage());
+												}
+											}
 										}else{
 											System.out.printf("Upload failed: %s\n", message.getMessage());
 										}
-									}else{
-										System.out.printf("Upload failed: %s\n", message.getMessage());
 									}
-								}
 							}
 							catch(Exception e1){
 								System.err.println("Error: " + message.getMessage());
@@ -269,16 +279,12 @@ public class FileThread extends Thread
 					}
 				}
 				else if (message.getMessage().compareTo("DELETEF")==0) {
-					byte [] integrity = crypto.HMAC(integrityKey.toByteArray(), message);
-					
-					Envelope integ = (Envelope)input.readObject();
-					ArrayList<Object> check = integ.getObjContents();
-					byte [] test = (byte [])check.get(0);
-					if(!Arrays.equals(test, integrity)){
+					if(!crypto.verify(integrityKey, message, input)){
 						response = new Envelope("FAIL");
 						/*response.addObject(null);*/
 						output.reset();
 						output.writeObject(response);
+						crypto.getHash(integrityKey, response, output);
 					}
 					else{
 						String remotePath = crypto.decryptAES((byte [])message.getObjContents().get(0), aesKey);
@@ -288,6 +294,7 @@ public class FileThread extends Thread
 						message = deleteFile(remotePath, t);
 						output.reset();
 						output.writeObject(message);
+						crypto.getHash(integrityKey, message, output);
 					}
 				}
 				else if(message.getMessage().equals("DISCONNECT"))
@@ -344,24 +351,41 @@ public class FileThread extends Thread
 				response = new Envelope("READY"); //Success
 				output.reset();
 				output.writeObject(response);
+				crypto.getHash(integrityKey, response, output);
 	
 				message = (Envelope)input.readObject();
-				while (message.getMessage().compareTo("CHUNK")==0) {
-					fos.write((byte[])message.getObjContents().get(0), 0, (Integer)message.getObjContents().get(1));
-					response = new Envelope("READY"); //Success
-					output.reset();
-					output.writeObject(response);
-					message = (Envelope)input.readObject();
+				if(!crypto.verify(integrityKey, message, input)){
+					response = new Envelope("FAIL-modified");
+					/*response.addObject(null);*/
+					//output.reset();
+					
 				}
-	
-				if(message.getMessage().compareTo("EOF")==0) {
-					System.out.printf("Transfer successful file %s\n", remotePath);
-					FileServer.fileList.addFile(yourToken.getSubject(), group, remotePath);
-					response = new Envelope("OK"); //Success
-				}
-				else {
-					System.out.printf("Error reading file %s from client\n", remotePath);
-					response = new Envelope("ERROR-TRANSFER"); //Success
+				else{
+					while (message.getMessage().compareTo("CHUNK")==0) {
+						fos.write((byte[])message.getObjContents().get(0), 0, (Integer)message.getObjContents().get(1));
+						response = new Envelope("READY"); //Success
+						output.reset();
+						output.writeObject(response);
+						crypto.getHash(integrityKey, response, output);
+						
+						message = (Envelope)input.readObject();
+						if(!crypto.verify(integrityKey, message, input)){
+							response = new Envelope("FAIL-modified");
+							/*response.addObject(null);*/
+							//output.reset();
+							break;
+						}
+					}
+		
+					if(message.getMessage().compareTo("EOF")==0) {
+						System.out.printf("Transfer successful file %s\n", remotePath);
+						FileServer.fileList.addFile(yourToken.getSubject(), group, remotePath);
+						response = new Envelope("OK"); //Success
+					}
+					else {
+						System.out.printf("Error reading file %s from client\n", remotePath);
+						response = new Envelope("ERROR-TRANSFER"); //Success
+					}
 				}
 				fos.close();
 			}

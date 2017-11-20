@@ -270,4 +270,31 @@ public class CryptoHelper{
         //System.out.println(Arrays.toString(ret));
         return ret;
    }
+
+   public void getHash(BigInteger key, Envelope message, ObjectOutputStream output){
+       try{
+
+            byte [] a = HMAC(key.toByteArray(), message);
+            message = new Envelope("INTEGRITY");
+            message.addObject(a);
+            output.reset();
+            output.writeObject(message);
+       }catch(Exception e){
+
+       }
+   }
+
+   public boolean verify(BigInteger key, Envelope message, ObjectInputStream input){
+       try{
+            byte [] integrity = HMAC(key.toByteArray(), message);
+            
+            Envelope integ = (Envelope)input.readObject();
+            ArrayList<Object> check = integ.getObjContents();
+            byte [] test = (byte [])check.get(0);
+            return Arrays.equals(test, integrity);
+       }
+       catch(Exception e){
+            return false;
+       }
+   }
 }

@@ -37,32 +37,34 @@ public class GroupClient extends Client implements GroupClientInterface {
 			
 			output.reset();
 			output.writeObject(message);
-			byte [] a = crypto.HMAC(this.integrityKey.toByteArray(), message);
-			message = new Envelope("INTEGRITY");
-			message.addObject(a);
-			output.reset();
-			output.writeObject(message);
+			crypto.getHash(integrityKey, message, output);
 			
 
 			//Get the response from the server
 			input.readObject();		//TODO Figure out why DHMSGS is sent twice
 			response = (Envelope)input.readObject();
-			System.out.println("gcli: " + response.getMessage());
-			//Successful response
-			if(response.getMessage().equals("OK"))
-			{
-				//If there is a token in the Envelope, return it
-				ArrayList<Object> temp = null;
-				temp = response.getObjContents();
-
-				if(temp.size() == 2)
+			if(!crypto.verify(integrityKey, response, input)){
+				System.out.println("Message was modified, aborting");
+			}
+			else{
+			
+				System.out.println("gcli: " + response.getMessage());
+				//Successful response
+				if(response.getMessage().equals("OK"))
 				{
-					token = crypto.extractToken(response, 0, aesKey);
-					//TODO this object type probably needs to be change once encrypted with server key
-					hashedToken = (byte[])response.getObjContents().get(1);
+					//If there is a token in the Envelope, return it
+					ArrayList<Object> temp = null;
+					temp = response.getObjContents();
 
-					TokenTuple tokTuple = new TokenTuple(token, hashedToken);
-					return tokTuple;
+					if(temp.size() == 2)
+					{
+						token = crypto.extractToken(response, 0, aesKey);
+						//TODO this object type probably needs to be change once encrypted with server key
+						hashedToken = (byte[])response.getObjContents().get(1);
+
+						TokenTuple tokTuple = new TokenTuple(token, hashedToken);
+						return tokTuple;
+					}
 				}
 			}
 			return null;
@@ -92,19 +94,20 @@ public class GroupClient extends Client implements GroupClientInterface {
 				message.addObject(crypto.encryptAES(tokTuple.hashedToken, aesKey));//Add the signed token hash
 				output.reset();
 				output.writeObject(message);
-				byte [] a = crypto.HMAC(this.integrityKey.toByteArray(), message);
-				message = new Envelope("INTEGRITY");
-				message.addObject(a);
-				output.reset();
-				output.writeObject(message);
+				crypto.getHash(integrityKey, message, output);
 
 				response = (Envelope)input.readObject();
+				if(!crypto.verify(integrityKey, response, input)){
+					System.out.println("Message was modified, aborting");
+				}
+				else{
 
-				//If server indicates success, return true
-				if(response.getMessage().equals("OK"))
-				{
-					output.reset();
-					return true;
+					//If server indicates success, return true
+					if(response.getMessage().equals("OK"))
+					{
+						output.reset();
+						return true;
+					}
 				}
 
 				return false;
@@ -130,19 +133,19 @@ public class GroupClient extends Client implements GroupClientInterface {
 				message.addObject(crypto.encryptAES(tokTuple.hashedToken, aesKey));//Add the signed token hash
 				output.reset();
 				output.writeObject(message);
-				byte [] a = crypto.HMAC(this.integrityKey.toByteArray(), message);
-				message = new Envelope("INTEGRITY");
-				message.addObject(a);
-				output.reset();
-				output.writeObject(message);
-
+				crypto.getHash(integrityKey, message, output);
 				response = (Envelope)input.readObject();
+				if(!crypto.verify(integrityKey, response, input)){
+					System.out.println("Message was modified, aborting");
+				}
+				else{
 
-				//If server indicates success, return true
-				if(response.getMessage().equals("OK"))
-				{
-					output.reset();
-					return true;
+					//If server indicates success, return true
+					if(response.getMessage().equals("OK"))
+					{
+						output.reset();
+						return true;
+					}
 				}
 
 				return false;
@@ -167,17 +170,17 @@ public class GroupClient extends Client implements GroupClientInterface {
 				message.addObject(crypto.encryptAES(tokTuple.hashedToken, aesKey));//Add the signed token hash
 				output.reset();
 				output.writeObject(message);
-				byte [] a = crypto.HMAC(this.integrityKey.toByteArray(), message);
-				message = new Envelope("INTEGRITY");
-				message.addObject(a);
-				output.reset();
-				output.writeObject(message);
-
+				crypto.getHash(integrityKey, message, output);
 				response = (Envelope)input.readObject();
-				//If server indicates success, return true
-				if(response.getMessage().equals("OK")){
-					output.reset();
-					return true;
+				if(!crypto.verify(integrityKey, response, input)){
+					System.out.println("Message was modified, aborting");
+				}
+				else{
+					//If server indicates success, return true
+					if(response.getMessage().equals("OK")){
+						output.reset();
+						return true;
+					}
 				}
 				return false;
 			}
@@ -201,18 +204,19 @@ public class GroupClient extends Client implements GroupClientInterface {
 				message.addObject(crypto.encryptAES(tokTuple.hashedToken, aesKey));//Add the signed token hash
 				output.reset();
 				output.writeObject(message);
-				byte [] a = crypto.HMAC(this.integrityKey.toByteArray(), message);
-				message = new Envelope("INTEGRITY");
-				message.addObject(a);
-				output.reset();
-				output.writeObject(message);
+				crypto.getHash(integrityKey, message, output);
 
 				response = (Envelope)input.readObject();
-				//If server indicates success, return true
-				if(response.getMessage().equals("OK"))
-				{
-					output.reset();
-					return true;
+				if(!crypto.verify(integrityKey, response, input)){
+					System.out.println("Message was modified, aborting");
+				}
+				else{
+					//If server indicates success, return true
+					if(response.getMessage().equals("OK"))
+					{
+						output.reset();
+						return true;
+					}
 				}
 
 				return false;
@@ -240,20 +244,20 @@ public class GroupClient extends Client implements GroupClientInterface {
 			 message.addObject(crypto.encryptAES(tokTuple.hashedToken, aesKey));//Add the signed token hash
 			 output.reset();
 			 output.writeObject(message);
-			 byte [] a = crypto.HMAC(this.integrityKey.toByteArray(), message);
-			 message = new Envelope("INTEGRITY");
-			 message.addObject(a);
-			 output.reset();
-			 output.writeObject(message);
+			 crypto.getHash(integrityKey, message, output);
 
 			 response = (Envelope)input.readObject();
-
-			 //If server indicates success, return the member list
-			 if(response.getMessage().equals("OK"))
-			 {
-				 output.reset();
-				return crypto.extractList(response, 0, aesKey);
-				//return (List<String>)response.getObjContents().get(0); //This cast creates compiler warnings. Sorry.
+			 if(!crypto.verify(integrityKey, response, input)){
+				System.out.println("Message was modified, aborting");
+			 }
+			 else{
+				//If server indicates success, return the member list
+				if(response.getMessage().equals("OK"))
+				{
+					output.reset();
+					return crypto.extractList(response, 0, aesKey);
+					//return (List<String>)response.getObjContents().get(0); //This cast creates compiler warnings. Sorry.
+				}
 			 }
 
 			 return null;
@@ -280,18 +284,19 @@ public class GroupClient extends Client implements GroupClientInterface {
 				message.addObject(crypto.encryptAES(tokTuple.hashedToken, aesKey));//Add the signed token hash
 				output.reset();
 				output.writeObject(message);
-				byte [] a = crypto.HMAC(this.integrityKey.toByteArray(), message);
-				message = new Envelope("INTEGRITY");
-				message.addObject(a);
-				output.reset();
-				output.writeObject(message);
+				crypto.getHash(integrityKey, message, output);
 
 				response = (Envelope)input.readObject();
-				//If server indicates success, return true
-				if(response.getMessage().equals("OK"))
-				{
-					output.reset();
-					return true;
+				if(!crypto.verify(integrityKey, response, input)){
+					System.out.println("Message was modified, aborting");
+				}
+				else{
+					//If server indicates success, return true
+					if(response.getMessage().equals("OK"))
+					{
+						output.reset();
+						return true;
+					}
 				}
 
 				return false;
@@ -317,18 +322,19 @@ public class GroupClient extends Client implements GroupClientInterface {
 				message.addObject(crypto.encryptAES(tokTuple.hashedToken, aesKey));//Add the signed token hash
 				output.reset();
 				output.writeObject(message);
-				byte [] a = crypto.HMAC(this.integrityKey.toByteArray(), message);
-				message = new Envelope("INTEGRITY");
-				message.addObject(a);
-				output.reset();
-				output.writeObject(message);
+				crypto.getHash(integrityKey, message, output);
 
 				response = (Envelope)input.readObject();
-				//If server indicates success, return true
-				if(response.getMessage().equals("OK"))
-				{
-					output.reset();
-					return true;
+				if(!crypto.verify(integrityKey, response, input)){
+					System.out.println("Message was modified, aborting");
+				}
+				else{
+					//If server indicates success, return true
+					if(response.getMessage().equals("OK"))
+					{
+						output.reset();
+						return true;
+					}
 				}
 
 				return false;
