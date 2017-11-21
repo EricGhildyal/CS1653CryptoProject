@@ -392,6 +392,7 @@ public class FileThread extends Thread
 		}catch(Exception ex){
 			System.out.println("Error uploading file: " + message);
 		}
+		System.out.println("testing");
 		return response;
 	}
 
