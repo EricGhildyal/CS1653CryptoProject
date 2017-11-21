@@ -155,7 +155,6 @@ public class FileClient extends Client implements FileClientInterface {
 			 output.writeObject(message);
 
 			 e = (Envelope)input.readObject();
-
 			 //If server indicates success, return the member list
 			 if(e.getMessage().equals("OK"))
 			 {
