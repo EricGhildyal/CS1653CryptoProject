@@ -98,7 +98,6 @@ public abstract class Client {
 			keyAgree = new DHBasicAgreement();
 			keyAgree.init(clientIntKeys.getPrivate());
 			integrityKey = keyAgree.calculateAgreement(servPub);
-			input.readObject();		//TODO Figure out why DHMSGS is sent twice
 			output.reset();
 		}catch(Exception e){
 			System.out.println("Error during Diffie Hellman exchange: " + e);

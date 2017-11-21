@@ -107,7 +107,7 @@ public class GroupThread extends Thread
 				System.out.println("Request received: " + message.getMessage());
 				Envelope response;
 				//busy wait until DH is done
-				while(!dhDone){
+				if(!dhDone){
 					System.out.println("dh loop"); //TODO remove
 					if(message.getMessage().equals("DHMSGS")){
 						if(setupDH(message)){
@@ -116,8 +116,7 @@ public class GroupThread extends Thread
 						}
 					}
 				}
-				output.reset();
-				if(message.getMessage().equals("GET")){ //Client wants a token
+				else if(message.getMessage().equals("GET")){ //Client wants a token
 					String username = crypto.decryptAES((byte[])message.getObjContents().get(0), aesKey); //Get the username
 					String password = crypto.decryptAES((byte[])message.getObjContents().get(1), aesKey); //Get the password
 					System.out.println("u: " + (username == null));

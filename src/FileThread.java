@@ -106,22 +106,21 @@ public class FileThread extends Thread
 				Envelope message = (Envelope)input.readObject();
 				System.out.println("Request received: " + message.getMessage());
 				//Busy wait until DH is done
-				while(!dhDone){
+				if(!dhDone){
 					System.out.println("dh loop"); //TODO remove
 					if(message.getMessage().equals("DHMSGS")){
 						if(setupDH(message)){
 							dhDone = true;
 							aesKey = new SecretKeySpec(confidentialityKey.toByteArray(),"AES");
 						}
-						else
-							System.out.println("FAIL");
 					}
 				}
 
 				// Handler to list files that this user is allowed to see
-				if(message.getMessage().equals("LFILES")){
+				else if(message.getMessage().equals("LFILES")){
 					ArrayList<String> list = listFiles(message, aesKey);
 					response = new Envelope("OK");
+					System.err.println(response.getMessage()); //TODO remove this line
 					byte [] ls = crypto.encryptAES(list.toString(), aesKey);
 					response.addObject(ls);
 					output.reset();
@@ -130,7 +129,7 @@ public class FileThread extends Thread
 				/*if(message.getMessage().equals("DHMSGS")){
 					setupDH(message);
 				}*/
-				if(message.getMessage().equals("UPLOADF")){
+				else if(message.getMessage().equals("UPLOADF")){
 					//decrypt transmission here
 					if(message.getObjContents().size() < 4){
 						response = new Envelope("FAIL-BADCONTENTS");
@@ -247,6 +246,7 @@ public class FileThread extends Thread
 					proceed = false;
 				}else{
 					response = new Envelope("FAIL"); //Server does not understand client request
+					System.err.println("WHAT:" + 	message.getMessage()); //TODO remove this line
 					output.reset();
 					output.writeObject(response);
 				}
