@@ -85,8 +85,7 @@ public class FileThread extends Thread
 			keyAgree = new DHBasicAgreement();
 			keyAgree.init(serverIntKeys.getPrivate());
 			integrityKey = keyAgree.calculateAgreement(clientPub);
-			System.out.println(confidentialityKey);
-			System.out.println(integrityKey);
+			
 			output.reset();
 		}catch(Exception e){
 			System.out.println("Error during Diffie Hellman exchange: " + e);
@@ -118,13 +117,21 @@ public class FileThread extends Thread
 
 				// Handler to list files that this user is allowed to see
 				else if(message.getMessage().equals("LFILES")){
-					ArrayList<String> list = listFiles(message, aesKey);
-					response = new Envelope("OK");
-					System.err.println(response.getMessage()); //TODO remove this line
-					byte [] ls = crypto.encryptAES(list.toString(), aesKey);
-					response.addObject(ls);
+					if(!crypto.verify(integrityKey, message, input)){
+						response = new Envelope("FAIL-MESSAGEMODIFIED");
+						/*response.addObject(null);
+						output.reset();
+						output.writeObject(response);*/
+					}
+					else{
+						ArrayList<String> list = listFiles(message, aesKey);
+						response = new Envelope("OK");
+						byte [] ls = crypto.encryptAES(list.toString(), aesKey);
+						response.addObject(ls);
+					}
 					output.reset();
 					output.writeObject(response);
+					crypto.getHash(integrityKey, response, output);
 				}
 				/*if(message.getMessage().equals("DHMSGS")){
 					setupDH(message);
@@ -134,110 +141,159 @@ public class FileThread extends Thread
 					if(message.getObjContents().size() < 4){
 						response = new Envelope("FAIL-BADCONTENTS");
 					}else{
-						String path = crypto.decryptAES(((byte [])message.getObjContents().get(0)), aesKey);
-						String grp = crypto.decryptAES(((byte [])message.getObjContents().get(1)), aesKey);
-						String token = crypto.decryptAES(((byte [])message.getObjContents().get(2)), aesKey);
+						if(!crypto.verify(integrityKey, message, input)){
+							response = new Envelope("FAIL-MESSAGEMODIFIED");
+							/*response.addObject(null);
+							output.reset();
+							output.writeObject(response);*/
+						}
+						else{
+							String path = crypto.decryptAES(((byte [])message.getObjContents().get(0)), aesKey);
+							String grp = crypto.decryptAES(((byte [])message.getObjContents().get(1)), aesKey);
+							String token = crypto.decryptAES(((byte [])message.getObjContents().get(2)), aesKey);
 
-						if(path == null) {
-							response = new Envelope("FAIL-BADPATH");
-						}else if(grp == null) {
-							response = new Envelope("FAIL-BADGROUP");
-						}else if(token == null) {
-							response = new Envelope("FAIL-BADTOKEN");
-						}else{
-							response = uploadFile(path, grp, token, message, aesKey);
+							if(path == null) {
+								response = new Envelope("FAIL-BADPATH");
+							}else if(grp == null) {
+								response = new Envelope("FAIL-BADGROUP");
+							}else if(token == null) {
+								response = new Envelope("FAIL-BADTOKEN");
+							}else{
+								response = uploadFile(path, grp, token, message, aesKey);
+							}
 						}
 					}
 					output.reset();
 					output.writeObject(response);
+					crypto.getHash(integrityKey, response, output);
+					
 				}
 				else if (message.getMessage().compareTo("DOWNLOADF")==0) {
-
-					String remotePath = crypto.decryptAES((byte [])message.getObjContents().get(0), aesKey);
-					Token t = (Token)crypto.extractToken(message, 1, aesKey);
-					byte[] hashedToken = crypto.decryptAESBytes((byte [])message.getObjContents().get(2), aesKey); //Extract signed token hash
-					//TODO check token
-					ShareFile sf = FileServer.fileList.getFile("/"+remotePath);
-					if (sf == null) {
-						System.out.printf("Error: File %s doesn't exist\n", remotePath);
-						message = new Envelope("ERROR_FILEMISSING");
+					if(!crypto.verify(integrityKey, message, input)){
+						response = new Envelope("FAIL");
+						/*response.addObject(null);*/
 						output.reset();
-						output.writeObject(message);
-
+						output.writeObject(response);
+						crypto.getHash(integrityKey, response, output);
 					}
-					else if (!t.getGroups().contains(sf.getGroup())){
-						System.out.printf("Error user %s doesn't have permission\n", t.getSubject());
-						message = new Envelope("ERROR_PERMISSION");
-						output.reset();
-						output.writeObject(message);
-					}else{
-						try{
-							File f = new File("shared_files/_"+remotePath.replace('/', '_'));
-							if (!f.exists()) {
-								System.out.printf("Error file %s missing from disk\n", "_"+remotePath.replace('/', '_'));
-								message = new Envelope("ERROR_NOTONDISK");
-								output.reset();
-								output.writeObject(message);
-							}else {
-								@SuppressWarnings("resource")
-								FileInputStream fis = new FileInputStream(f);
+					else{
+						String remotePath = crypto.decryptAES((byte [])message.getObjContents().get(0), aesKey);
+						Token t = (Token)crypto.extractToken(message, 1, aesKey);
+						byte[] hashedToken = crypto.decryptAESBytes((byte [])message.getObjContents().get(2), aesKey); //Extract signed token hash
+						//TODO check token
+						ShareFile sf = FileServer.fileList.getFile("/"+remotePath);
+						if (sf == null) {
+							System.out.printf("Error: File %s doesn't exist\n", remotePath);
+							message = new Envelope("ERROR_FILEMISSING");
+							output.reset();
+							output.writeObject(message);
+							crypto.getHash(integrityKey, message, output);
 
-								do {
-									byte[] buf = new byte[4096];
-									if (message.getMessage().compareTo("DOWNLOADF")!=0) {
-										System.out.printf("Server error: %s\n", message.getMessage());
-										break;
-									}
-									message = new Envelope("CHUNK");
-									int n = fis.read(buf); //can throw an IOException
-									if (n > 0) {
-										// System.out.printf(".");
-									} else if (n < 0) {
-										System.out.println("Read error");
-									}
-									String toEnc = new String(buf, "UTF-8");
-									byte [] buffer = crypto.encryptAES(toEnc, aesKey);
-									byte [] byteN = crypto.encryptAES((new Integer(n)).toString(), aesKey);
-									message.addObject(buffer);
-									message.addObject(byteN);
-									//message.addObject(new Integer(n));
-									output.reset();
-									output.writeObject(message);
-									message = (Envelope)input.readObject();
-								}
-								while (fis.available()>0);
-								//If server indicates success, return the member list
-								if(message.getMessage().compareTo("DOWNLOADF")==0){
-									message = new Envelope("EOF");
-									output.reset();
-									output.writeObject(message);
-
-									message = (Envelope)input.readObject();
-									if(message.getMessage().compareTo("OK")==0) {
-										System.out.printf("File data upload successful\n");
-									}else{
-										System.out.printf("Upload failed: %s\n", message.getMessage());
-									}
-								}else{
-									System.out.printf("Upload failed: %s\n", message.getMessage());
-								}
-							}
 						}
-						catch(Exception e1){
-							System.err.println("Error: " + message.getMessage());
-							e1.printStackTrace(System.err);
+						else if (!t.getGroups().contains(sf.getGroup())){
+							System.out.printf("Error user %s doesn't have permission\n", t.getSubject());
+							message = new Envelope("ERROR_PERMISSION");
+							output.reset();
+							output.writeObject(message);
+							crypto.getHash(integrityKey, message, output);
+						}else{
+							try{
+								File f = new File("shared_files/_"+remotePath.replace('/', '_'));
+								if (!f.exists()) {
+									System.out.printf("Error file %s missing from disk\n", "_"+remotePath.replace('/', '_'));
+									message = new Envelope("ERROR_NOTONDISK");
+									output.reset();
+									output.writeObject(message);
+									crypto.getHash(integrityKey, message, output);
+								}else {
+									@SuppressWarnings("resource")
+									FileInputStream fis = new FileInputStream(f);
+
+									do {
+										byte[] buf = new byte[4096];
+										if (message.getMessage().compareTo("DOWNLOADF")!=0) {
+											System.out.printf("Server error: %s\n", message.getMessage());
+											break;
+										}
+										message = new Envelope("CHUNK");
+										int n = fis.read(buf); //can throw an IOException
+										if (n > 0) {
+											// System.out.printf(".");
+										} else if (n < 0) {
+											System.out.println("Read error");
+										}
+										String toEnc = new String(buf, "UTF-8");
+										byte [] buffer = crypto.encryptAES(toEnc, aesKey);
+										byte [] byteN = crypto.encryptAES((new Integer(n)).toString(), aesKey);
+										message.addObject(buffer);
+										message.addObject(byteN);
+										//message.addObject(new Integer(n));
+										output.reset();
+										output.writeObject(message);
+										crypto.getHash(integrityKey, message, output);
+										message = (Envelope)input.readObject();
+										if(!crypto.verify(integrityKey, message, input)){
+											response = new Envelope("FAIL-MESSAGEMODIFIED");
+											/*response.addObject(null);
+											output.reset();
+											output.writeObject(response);*/
+											break;
+										}
+									}
+									while (fis.available()>0);
+									//If server indicates success, return the member list
+										if(message.getMessage().compareTo("DOWNLOADF")==0){
+											message = new Envelope("EOF");
+											output.reset();
+											output.writeObject(message);
+											crypto.getHash(integrityKey, message, output);
+
+											message = (Envelope)input.readObject();
+											if(!crypto.verify(integrityKey, message, input)){
+												response = new Envelope("FAIL-MESSAGEMODIFIED");
+												System.out.println("Upload Failed - Message Modified");
+												/*response.addObject(null);
+												output.reset();
+												output.writeObject(response);*/
+												break;
+											}
+											else{
+												if(message.getMessage().compareTo("OK")==0) {
+													System.out.printf("File data upload successful\n");
+												}else{
+													System.out.printf("Upload failed: %s\n", message.getMessage());
+												}
+											}
+										}else{
+											System.out.printf("Upload failed: %s\n", message.getMessage());
+										}
+									}
+							}
+							catch(Exception e1){
+								System.err.println("Error: " + message.getMessage());
+								e1.printStackTrace(System.err);
+							}
 						}
 					}
 				}
 				else if (message.getMessage().compareTo("DELETEF")==0) {
-
-					String remotePath = crypto.decryptAES((byte [])message.getObjContents().get(0), aesKey);
-					Token t = (Token)crypto.extractToken(message, 1, aesKey);
-					byte[] hashedToken = crypto.decryptAESBytes((byte [])message.getObjContents().get(2), aesKey); //Extract signed token hash
-					//TODO check token
-					message = deleteFile(remotePath, t);
-					output.reset();
-					output.writeObject(message);
+					if(!crypto.verify(integrityKey, message, input)){
+						response = new Envelope("FAIL");
+						/*response.addObject(null);*/
+						output.reset();
+						output.writeObject(response);
+						crypto.getHash(integrityKey, response, output);
+					}
+					else{
+						String remotePath = crypto.decryptAES((byte [])message.getObjContents().get(0), aesKey);
+						Token t = (Token)crypto.extractToken(message, 1, aesKey);
+						byte[] hashedToken = crypto.decryptAESBytes((byte [])message.getObjContents().get(2), aesKey); //Extract signed token hash
+						//TODO check token
+						message = deleteFile(remotePath, t);
+						output.reset();
+						output.writeObject(message);
+						crypto.getHash(integrityKey, message, output);
+					}
 				}
 				else if(message.getMessage().equals("DISCONNECT"))
 				{
@@ -249,6 +305,7 @@ public class FileThread extends Thread
 					System.err.println("WHAT:" + 	message.getMessage()); //TODO remove this line
 					output.reset();
 					output.writeObject(response);
+					crypto.getHash(integrityKey, response, output);
 				}
 			} while(proceed);
 		}catch(java.net.SocketException s){
@@ -299,30 +356,48 @@ public class FileThread extends Thread
 				response = new Envelope("READY"); //Success
 				output.reset();
 				output.writeObject(response);
-
+				crypto.getHash(integrityKey, response, output);
+	
 				message = (Envelope)input.readObject();
-				while (message.getMessage().compareTo("CHUNK")==0) {
-					fos.write((byte[])message.getObjContents().get(0), 0, (Integer)message.getObjContents().get(1));
-					response = new Envelope("READY"); //Success
-					output.reset();
-					output.writeObject(response);
-					message = (Envelope)input.readObject();
+				if(!crypto.verify(integrityKey, message, input)){
+					response = new Envelope("FAIL-modified");
+					/*response.addObject(null);*/
+					//output.reset();
+					
 				}
-
-				if(message.getMessage().compareTo("EOF")==0) {
-					System.out.printf("Transfer successful file %s\n", remotePath);
-					FileServer.fileList.addFile(yourToken.getSubject(), group, remotePath);
-					response = new Envelope("OK"); //Success
-				}
-				else {
-					System.out.printf("Error reading file %s from client\n", remotePath);
-					response = new Envelope("ERROR-TRANSFER"); //Success
+				else{
+					while (message.getMessage().compareTo("CHUNK")==0) {
+						fos.write((byte[])message.getObjContents().get(0), 0, (Integer)message.getObjContents().get(1));
+						response = new Envelope("READY"); //Success
+						output.reset();
+						output.writeObject(response);
+						crypto.getHash(integrityKey, response, output);
+						
+						message = (Envelope)input.readObject();
+						if(!crypto.verify(integrityKey, message, input)){
+							response = new Envelope("FAIL-modified");
+							/*response.addObject(null);*/
+							//output.reset();
+							break;
+						}
+					}
+		
+					if(message.getMessage().compareTo("EOF")==0) {
+						System.out.printf("Transfer successful file %s\n", remotePath);
+						FileServer.fileList.addFile(yourToken.getSubject(), group, remotePath);
+						response = new Envelope("OK"); //Success
+					}
+					else {
+						System.out.printf("Error reading file %s from client\n", remotePath);
+						response = new Envelope("ERROR-TRANSFER"); //Success
+					}
 				}
 				fos.close();
 			}
 		}catch(Exception ex){
 			System.out.println("Error uploading file: " + message);
 		}
+		System.out.println("testing");
 		return response;
 	}
 

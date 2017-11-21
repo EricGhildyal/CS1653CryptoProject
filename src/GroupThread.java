@@ -84,8 +84,7 @@ public class GroupThread extends Thread
 			keyAgree = new DHBasicAgreement();
 			keyAgree.init(serverIntKeys.getPrivate());
 			integrityKey = keyAgree.calculateAgreement(clientPub);
-			System.out.println(confidentialityKey);
-			System.out.println(integrityKey);
+			
 			output.reset();
 		}catch(Exception e){
 			System.out.println("Error during Diffie Hellman exchange: " + e);
@@ -108,105 +107,150 @@ public class GroupThread extends Thread
 				Envelope response;
 				//busy wait until DH is done
 				if(!dhDone){
-					System.out.println("dh loop"); //TODO remove
-					if(message.getMessage().equals("DHMSGS")){
-						if(setupDH(message)){
-							dhDone = true;
-							aesKey = new SecretKeySpec(confidentialityKey.toByteArray(),"AES");
+					while(!dhDone){
+						System.out.println("dh loop"); //TODO remove
+						if(message.getMessage().equals("DHMSGS")){
+							if(setupDH(message)){
+								dhDone = true;
+								aesKey = new SecretKeySpec(confidentialityKey.toByteArray(),"AES");
+							}
 						}
 					}
 				}
 				else if(message.getMessage().equals("GET")){ //Client wants a token
+			
+				
+				//output.reset();
+				//if(message.getMessage().equals("GET")){ //Client wants a token
+					
 					String username = crypto.decryptAES((byte[])message.getObjContents().get(0), aesKey); //Get the username
 					String password = crypto.decryptAES((byte[])message.getObjContents().get(1), aesKey); //Get the password
-					System.out.println("u: " + (username == null));
-					System.out.println("p: " + (password == null));
-					System.out.println("db get u and p: " + my_db.get(username, password));
-					if(username == null || password == null || !my_db.get(username, password)){
+					
+					
+					
+					if(!crypto.verify(integrityKey, message, input)){
 						response = new Envelope("FAIL");
-						System.out.println("AYYYY");
 						response.addObject(null);
 						output.reset();
 						output.writeObject(response);
-					}else{
-						UserToken yourToken = createToken(username); //Create a token
-						System.out.println("bruhhhh");
-						//Respond to the client. On error, the client will receive a null token
-						response = new Envelope("OK");
-						byte [] tok = new byte[32];
-						byte [] uniqueStringHash;
-						if(yourToken != null){
-							//TODO uniqueStringHash needs to be encrypted with GroupServers private key
-							uniqueStringHash = crypto.sha256Bytes(yourToken.toUniqueString());
-							tok = crypto.encryptAES(yourToken.toString(), aesKey);
-							response.addObject(tok);
-							response.addObject(uniqueStringHash);
+						crypto.getHash(integrityKey, response, output);
+					}
+					else{
+					
+						if(username == null || password == null || !my_db.get(username, password)){
+							response = new Envelope("FAIL");
+							
+							response.addObject(null);
+							output.reset();
+							output.writeObject(response);
+							crypto.getHash(integrityKey, response, output);
 						}else{
-							response.addObject(yourToken);
+							UserToken yourToken = createToken(username); //Create a token
+							//Respond to the client. On error, the client will receive a null token
+							response = new Envelope("OK");
+							byte [] tok = new byte[32];
+							byte [] uniqueStringHash;
+							if(yourToken != null){
+								//TODO uniqueStringHash needs to be encrypted with GroupServers private key
+								uniqueStringHash = crypto.sha256Bytes(yourToken.toUniqueString());
+								tok = crypto.encryptAES(yourToken.toString(), aesKey);
+								response.addObject(tok);
+								response.addObject(uniqueStringHash);
+							}else{
+								response.addObject(yourToken);
+							}
+							output.reset();
+							output.writeObject(response);
+							crypto.getHash(integrityKey, response, output);
 						}
-						output.reset();
-						output.writeObject(response);
 					}
 				}else if(message.getMessage().equals("CUSER")){ //Client wants to create a user
 					if(message.getObjContents().size() < 4){
 						response = new Envelope("FAIL");
 					}else{
-						response = new Envelope("FAIL");
-						if(message.getObjContents().get(0) != null){
-							if(message.getObjContents().get(1) != null){
-								String username = crypto.decryptAES((byte[])message.getObjContents().get(0), aesKey); //Get the username
-								String password = crypto.decryptAES((byte[])message.getObjContents().get(1), aesKey); //Get the password
-								UserToken yourToken = crypto.extractToken(message, 2, aesKey); //Extract the token
-								byte[] hashedToken = crypto.decryptAESBytes((byte [])message.getObjContents().get(3), aesKey);
-								//TODO checkToken
-								if(createUser(username, password, yourToken))
-								{
-									response = new Envelope("OK"); //Success
+						if(!crypto.verify(integrityKey, message, input)){
+							response = new Envelope("FAIL");
+							/*response.addObject(null);
+							output.reset();
+							output.writeObject(response);*/
+						}
+						else{
+							response = new Envelope("FAIL");
+							if(message.getObjContents().get(0) != null){
+								if(message.getObjContents().get(1) != null){
+									
+									String username = crypto.decryptAES((byte[])message.getObjContents().get(0), aesKey); //Get the username
+									String password = crypto.decryptAES((byte[])message.getObjContents().get(1), aesKey); //Get the password
+									UserToken yourToken = crypto.extractToken(message, 2, aesKey); //Extract the token
+									byte[] hashedToken = crypto.decryptAESBytes((byte [])message.getObjContents().get(3), aesKey);
+									//TODO checkToken
+									if(createUser(username, password, yourToken))
+									{
+										response = new Envelope("OK"); //Success
+									}
 								}
 							}
 						}
 					}
 					output.reset();
 					output.writeObject(response);
+					crypto.getHash(integrityKey, response, output);
 				}
 				else if(message.getMessage().equals("DUSER")){ //Client wants to delete a user
 					if(message.getObjContents().size() < 2){
 						response = new Envelope("FAIL");
 					}else{
-						response = new Envelope("FAIL");
-						if(message.getObjContents().get(0) != null){
-							if(message.getObjContents().get(1) != null){
-								String username = crypto.decryptAES((byte [])message.getObjContents().get(0), aesKey); //Extract the username
-								UserToken yourToken = crypto.extractToken(message, 1, aesKey); //Extract the token
-								byte[] hashedToken = crypto.decryptAESBytes((byte [])message.getObjContents().get(2), aesKey);
-								//TODO checkToken
-								if(deleteUser(username, yourToken)){
-									response = new Envelope("OK"); //Success
-								}else{
-									response = new Envelope("FAIL");
+						if(!crypto.verify(integrityKey, message, input)){
+							response = new Envelope("FAIL");
+							/*response.addObject(null);
+							output.reset();
+							output.writeObject(response);*/
+						}
+						else{
+							response = new Envelope("FAIL");
+							if(message.getObjContents().get(0) != null){
+								if(message.getObjContents().get(1) != null){
+									String username = crypto.decryptAES((byte [])message.getObjContents().get(0), aesKey); //Extract the username
+									UserToken yourToken = crypto.extractToken(message, 1, aesKey); //Extract the token
+									byte[] hashedToken = crypto.decryptAESBytes((byte [])message.getObjContents().get(2), aesKey);
+									//TODO checkToken
+									if(deleteUser(username, yourToken)){
+										response = new Envelope("OK"); //Success
+									}else{
+										response = new Envelope("FAIL");
+									}
 								}
 							}
 						}
 					}
 					output.reset();
 					output.writeObject(response);
+					crypto.getHash(integrityKey, response, output);
 				}
 				else if(message.getMessage().equals("CGROUP")){ //Client wants to create a group
 					if(message.getObjContents().size() < 3){ //check for valid number of args
 						response = new Envelope("FAIL");
 					}else{
-						response = new Envelope("FAIL");
-						if(message.getObjContents().get(0) != null){ //get groupName
-							if(message.getObjContents().get(1) != null){ //get token
-								String groupName = crypto.decryptAES((byte [])message.getObjContents().get(0), aesKey); //Extract the username
-								UserToken yourToken = crypto.extractToken(message, 1, aesKey); //Extract the token
-								byte[] hashedToken = crypto.decryptAESBytes((byte [])message.getObjContents().get(2), aesKey); //Extract signed token hash
-								//TODO check token
-								if(!groupName.isEmpty() || !groupName.contains("/")|| !groupName.contains("/") || !groupName.contains(" ") || !groupName.contains("[") || !groupName.contains("]") || !groupName.contains(":") || !groupName.contains(",")){
-									System.out.println("Creating group");
-									if(createGroup(groupName, yourToken)){
-										System.out.println("Successful");
-										response = new Envelope("OK");
+						if(!crypto.verify(integrityKey, message, input)){
+							response = new Envelope("FAIL");
+							/*response.addObject(null);
+							output.reset();
+							output.writeObject(response);*/
+						}
+						else{
+							response = new Envelope("FAIL");
+							if(message.getObjContents().get(0) != null){ //get groupName
+								if(message.getObjContents().get(1) != null){ //get token
+									String groupName = crypto.decryptAES((byte [])message.getObjContents().get(0), aesKey); //Extract the username
+									UserToken yourToken = crypto.extractToken(message, 1, aesKey); //Extract the token
+									byte[] hashedToken = crypto.decryptAESBytes((byte [])message.getObjContents().get(2), aesKey); //Extract signed token hash
+									//TODO check token
+									if(!groupName.isEmpty() || !groupName.contains("/")|| !groupName.contains("/") || !groupName.contains(" ") || !groupName.contains("[") || !groupName.contains("]") || !groupName.contains(":") || !groupName.contains(",")){
+										System.out.println("Creating group");
+										if(createGroup(groupName, yourToken)){
+											System.out.println("Successful");
+											response = new Envelope("OK");
+										}
 									}
 								}
 							}
@@ -214,21 +258,30 @@ public class GroupThread extends Thread
 					}
 					output.reset();
 					output.writeObject(response);
+					crypto.getHash(integrityKey, response, output);
 				}
 				else if(message.getMessage().equals("DGROUP")){ //Client wants to delete a group
 					if(message.getObjContents().size() < 3){ //check for valid number of args
 						response = new Envelope("FAIL");
 					}else{
-						response = new Envelope("FAIL");
-						if(message.getObjContents().get(0) != null){ //get groupName
-							if(message.getObjContents().get(1) != null){ //get token
-								String groupName = crypto.decryptAES((byte [])message.getObjContents().get(0), aesKey); //Extract the username
-								UserToken yourToken = crypto.extractToken(message, 1, aesKey); //Extract the token
-								byte[] hashedToken = crypto.decryptAESBytes((byte [])message.getObjContents().get(2), aesKey); //Extract signed token hash
-								//TODO check token
-								if(!groupName.isEmpty() || !groupName.contains("/")|| !groupName.contains("/") || !groupName.contains(" ") || !groupName.contains("[") || !groupName.contains("]") || !groupName.contains(":") || !groupName.contains(",")){
-									if(deleteGroup(groupName, yourToken)){
-										response = new Envelope("OK");
+						if(!crypto.verify(integrityKey, message, input)){
+							response = new Envelope("FAIL");
+							/*response.addObject(null);
+							output.reset();
+							output.writeObject(response);*/
+						}
+						else{
+							response = new Envelope("FAIL");
+							if(message.getObjContents().get(0) != null){ //get groupName
+								if(message.getObjContents().get(1) != null){ //get token
+									String groupName = crypto.decryptAES((byte [])message.getObjContents().get(0), aesKey); //Extract the username
+									UserToken yourToken = crypto.extractToken(message, 1, aesKey); //Extract the token
+									byte[] hashedToken = crypto.decryptAESBytes((byte [])message.getObjContents().get(2), aesKey); //Extract signed token hash
+									//TODO check token
+									if(!groupName.isEmpty() || !groupName.contains("/")|| !groupName.contains("/") || !groupName.contains(" ") || !groupName.contains("[") || !groupName.contains("]") || !groupName.contains(":") || !groupName.contains(",")){
+										if(deleteGroup(groupName, yourToken)){
+											response = new Envelope("OK");
+										}
 									}
 								}
 							}
@@ -236,77 +289,32 @@ public class GroupThread extends Thread
 					}
 					output.reset();
 					output.writeObject(response);
+					crypto.getHash(integrityKey, response, output);
 				}else if(message.getMessage().equals("LMEMBERS")){ //Client wants a list of members in a group
 					if(message.getObjContents().size() < 3){ //check for valid number of args
 						response = new Envelope("FAIL");
 					}else{
-						response = new Envelope("FAIL");
-						if(message.getObjContents().get(0) != null){ //get groupName
-							if(message.getObjContents().get(1) != null){ //get token
-								String groupName = crypto.decryptAES((byte[])message.getObjContents().get(0), aesKey); //Extract the groupName
-								UserToken yourToken = crypto.extractToken(message, 1, aesKey); //Extract the token
-								byte[] hashedToken = crypto.decryptAESBytes((byte [])message.getObjContents().get(2), aesKey); //Extract signed token hash
-								//TODO check token
-								response = new Envelope("OK");
-								byte [] mems;
-								if(!groupName.isEmpty() || !groupName.contains("/")|| !groupName.contains("/") || !groupName.contains(" ") || !groupName.contains("[") || !groupName.contains("]") || !groupName.contains(":") || !groupName.contains(",")){
-									try{
-										mems = crypto.encryptAES(listMembers(groupName, yourToken).toString(), aesKey);
-										response.addObject(mems);
-									}catch(NullPointerException e){
-										response = new Envelope("FAIL");
-									}
-							 	}
-							}
+						if(!crypto.verify(integrityKey, message, input)){
+							response = new Envelope("FAIL");
+							/*response.addObject(null);
+							output.reset();
+							output.writeObject(response);*/
 						}
-					}
-					output.reset();
-					output.writeObject(response);
-				}
-				else if(message.getMessage().equals("AUSERTOGROUP")){ //Client wants to add user to a group
-					if(message.getObjContents().size() < 4){ //check for valid number of args
-						response = new Envelope("FAIL");
-					}else{
-						response = new Envelope("FAIL");
-						if(message.getObjContents().get(0) != null){ //get username
-							if(message.getObjContents().get(1) != null){ //get groupname
-								if(message.getObjContents().get(2) != null){ //get token
-									String username = crypto.decryptAES((byte[])message.getObjContents().get(0), aesKey); //Get the username
-									String groupName = crypto.decryptAES((byte[])message.getObjContents().get(1), aesKey); //Get the group name
-									UserToken yourToken = crypto.extractToken(message, 2, aesKey); //Extract the token
-									byte[] hashedToken = crypto.decryptAESBytes((byte [])message.getObjContents().get(3), aesKey); //Extract signed token hash
+						else{
+							response = new Envelope("FAIL");
+							if(message.getObjContents().get(0) != null){ //get groupName
+								if(message.getObjContents().get(1) != null){ //get token
+									String groupName = crypto.decryptAES((byte[])message.getObjContents().get(0), aesKey); //Extract the groupName
+									UserToken yourToken = crypto.extractToken(message, 1, aesKey); //Extract the token
+									byte[] hashedToken = crypto.decryptAESBytes((byte [])message.getObjContents().get(2), aesKey); //Extract signed token hash
 									//TODO check token
+									response = new Envelope("OK");
+									byte [] mems;
 									if(!groupName.isEmpty() || !groupName.contains("/")|| !groupName.contains("/") || !groupName.contains(" ") || !groupName.contains("[") || !groupName.contains("]") || !groupName.contains(":") || !groupName.contains(",")){
-										if(addUserToGroup(username, groupName, yourToken)){
-											response = new Envelope("OK");
-										}
-									}
-								}
-							}
-						}
-					}
-					output.reset();
-					output.writeObject(response);
-				}
-				else if(message.getMessage().equals("RUSERFROMGROUP")){ //Client wants to remove user from a group
-					if(message.getObjContents().size() < 4){ //check for valid number of args
-						response = new Envelope("FAIL");
-					}else{
-						response = new Envelope("FAIL");
-						if(message.getObjContents().get(0) != null){ //get username
-							if(message.getObjContents().get(1) != null){ //get groupname
-								if(message.getObjContents().get(2) != null){ //get token
-									String username = crypto.decryptAES((byte[])message.getObjContents().get(0), aesKey); //Get the username
-									String groupName = crypto.decryptAES((byte[])message.getObjContents().get(1), aesKey); //Get the password
-									UserToken yourToken = crypto.extractToken(message, 2, aesKey); //Extract the token
-									byte[] hashedToken = crypto.decryptAESBytes((byte [])message.getObjContents().get(3), aesKey); //Extract signed token hash
-									//TODO check token
-
-									if(!groupName.isEmpty() || !groupName.contains("/")|| !groupName.contains("/") || !groupName.contains(" ") || !groupName.contains("[") || !groupName.contains("]") || !groupName.contains(":") || !groupName.contains(",")){
-										if(removeUserFromGroup(username, groupName, yourToken)){
-											response = new Envelope("OK");
-										}
-										else{
+										try{
+											mems = crypto.encryptAES(listMembers(groupName, yourToken).toString(), aesKey);
+											response.addObject(mems);
+										}catch(NullPointerException e){
 											response = new Envelope("FAIL");
 										}
 									}
@@ -316,6 +324,79 @@ public class GroupThread extends Thread
 					}
 					output.reset();
 					output.writeObject(response);
+					crypto.getHash(integrityKey, response, output);
+				}
+				else if(message.getMessage().equals("AUSERTOGROUP")){ //Client wants to add user to a group
+					if(message.getObjContents().size() < 4){ //check for valid number of args
+						response = new Envelope("FAIL");
+					}else{
+						if(!crypto.verify(integrityKey, message, input)){
+							response = new Envelope("FAIL");
+							/*response.addObject(null);
+							output.reset();
+							output.writeObject(response);*/
+						}
+						else{
+							response = new Envelope("FAIL");
+							if(message.getObjContents().get(0) != null){ //get username
+								if(message.getObjContents().get(1) != null){ //get groupname
+									if(message.getObjContents().get(2) != null){ //get token
+										String username = crypto.decryptAES((byte[])message.getObjContents().get(0), aesKey); //Get the username
+										String groupName = crypto.decryptAES((byte[])message.getObjContents().get(1), aesKey); //Get the group name
+										UserToken yourToken = crypto.extractToken(message, 2, aesKey); //Extract the token
+										byte[] hashedToken = crypto.decryptAESBytes((byte [])message.getObjContents().get(3), aesKey); //Extract signed token hash
+										//TODO check token
+										if(!groupName.isEmpty() || !groupName.contains("/")|| !groupName.contains("/") || !groupName.contains(" ") || !groupName.contains("[") || !groupName.contains("]") || !groupName.contains(":") || !groupName.contains(",")){
+											if(addUserToGroup(username, groupName, yourToken)){
+												response = new Envelope("OK");
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+					output.reset();
+					output.writeObject(response);
+					crypto.getHash(integrityKey, response, output);
+				}
+				else if(message.getMessage().equals("RUSERFROMGROUP")){ //Client wants to remove user from a group
+					if(message.getObjContents().size() < 4){ //check for valid number of args
+						response = new Envelope("FAIL");
+					}else{
+						if(!crypto.verify(integrityKey, message, input)){
+							response = new Envelope("FAIL");
+							/*response.addObject(null);
+							output.reset();
+							output.writeObject(response);*/
+						}
+						else{
+							response = new Envelope("FAIL");
+							if(message.getObjContents().get(0) != null){ //get username
+								if(message.getObjContents().get(1) != null){ //get groupname
+									if(message.getObjContents().get(2) != null){ //get token
+										String username = crypto.decryptAES((byte[])message.getObjContents().get(0), aesKey); //Get the username
+										String groupName = crypto.decryptAES((byte[])message.getObjContents().get(1), aesKey); //Get the password
+										UserToken yourToken = crypto.extractToken(message, 2, aesKey); //Extract the token
+										byte[] hashedToken = crypto.decryptAESBytes((byte [])message.getObjContents().get(3), aesKey); //Extract signed token hash
+										//TODO check token
+
+										if(!groupName.isEmpty() || !groupName.contains("/")|| !groupName.contains("/") || !groupName.contains(" ") || !groupName.contains("[") || !groupName.contains("]") || !groupName.contains(":") || !groupName.contains(",")){
+											if(removeUserFromGroup(username, groupName, yourToken)){
+												response = new Envelope("OK");
+											}
+											else{
+												response = new Envelope("FAIL");
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+					output.reset();
+					output.writeObject(response);
+					crypto.getHash(integrityKey, response, output);
 				}else if(message.getMessage().equals("DISCONNECT")){ //Client wants to disconnect
 					crypto.saveRing(my_gs.keyRing);
 					socket.close(); //Close the socket
@@ -326,7 +407,7 @@ public class GroupThread extends Thread
 					output.reset();
 					output.writeObject(response);
 				}
-
+			
 			}while(proceed);
 		}catch(java.net.SocketException s){
 			//do nothing
