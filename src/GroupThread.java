@@ -27,6 +27,8 @@ import org.bouncycastle.crypto.agreement.DHBasicAgreement;
 import java.security.*;
 import java.math.*;
 import javax.crypto.spec.SecretKeySpec;
+import org.apache.commons.codec.binary.Base64;
+
 
 public class GroupThread extends Thread
 {
@@ -159,7 +161,10 @@ public class GroupThread extends Thread
 								UserToken yourToken = crypto.extractToken(message, 2, aesKey); //Extract the token
 								byte[] hashedToken = crypto.decryptAESBytes((byte [])message.getObjContents().get(3), aesKey);
 								//TODO checkToken
-								if(createUser(username, password, yourToken))
+								if(!yourToken.getTarget().equals(Base64.encodeBase64String(my_gs.keyRing.getKey("rsa_pub").getEncoded()))){
+									System.err.println("Token was not signed for use with this server.");
+								}
+								else if(createUser(username, password, yourToken))
 								{
 									response = new Envelope("OK"); //Success
 								}
@@ -180,7 +185,10 @@ public class GroupThread extends Thread
 								UserToken yourToken = crypto.extractToken(message, 1, aesKey); //Extract the token
 								byte[] hashedToken = crypto.decryptAESBytes((byte [])message.getObjContents().get(2), aesKey);
 								//TODO checkToken
-								if(deleteUser(username, yourToken)){
+								if(!yourToken.getTarget().equals(Base64.encodeBase64String(my_gs.keyRing.getKey("rsa_pub").getEncoded()))){
+									System.err.println("Token was not signed for use with this server.");
+								}
+								else if(deleteUser(username, yourToken)){
 									response = new Envelope("OK"); //Success
 								}else{
 									response = new Envelope("FAIL");
@@ -202,7 +210,10 @@ public class GroupThread extends Thread
 								UserToken yourToken = crypto.extractToken(message, 1, aesKey); //Extract the token
 								byte[] hashedToken = crypto.decryptAESBytes((byte [])message.getObjContents().get(2), aesKey); //Extract signed token hash
 								//TODO check token
-								if(!groupName.isEmpty() || !groupName.contains("/")|| !groupName.contains("/") || !groupName.contains(" ") || !groupName.contains("[") || !groupName.contains("]") || !groupName.contains(":") || !groupName.contains(",")){
+								if(!yourToken.getTarget().equals(Base64.encodeBase64String(my_gs.keyRing.getKey("rsa_pub").getEncoded()))){
+									System.err.println("Token was not signed for use with this server.");
+								}
+								else if(!groupName.isEmpty() || !groupName.contains("/")|| !groupName.contains("/") || !groupName.contains(" ") || !groupName.contains("[") || !groupName.contains("]") || !groupName.contains(":") || !groupName.contains(",")){
 									System.out.println("Creating group");
 									if(createGroup(groupName, yourToken)){
 										System.out.println("Successful");
@@ -226,7 +237,10 @@ public class GroupThread extends Thread
 								UserToken yourToken = crypto.extractToken(message, 1, aesKey); //Extract the token
 								byte[] hashedToken = crypto.decryptAESBytes((byte [])message.getObjContents().get(2), aesKey); //Extract signed token hash
 								//TODO check token
-								if(!groupName.isEmpty() || !groupName.contains("/")|| !groupName.contains("/") || !groupName.contains(" ") || !groupName.contains("[") || !groupName.contains("]") || !groupName.contains(":") || !groupName.contains(",")){
+								if(!yourToken.getTarget().equals(Base64.encodeBase64String(my_gs.keyRing.getKey("rsa_pub").getEncoded()))){
+									System.err.println("Token was not signed for use with this server.");
+								}
+								else if(!groupName.isEmpty() || !groupName.contains("/")|| !groupName.contains("/") || !groupName.contains(" ") || !groupName.contains("[") || !groupName.contains("]") || !groupName.contains(":") || !groupName.contains(",")){
 									if(deleteGroup(groupName, yourToken)){
 										response = new Envelope("OK");
 									}
@@ -246,15 +260,20 @@ public class GroupThread extends Thread
 								String groupName = crypto.decryptAES((byte[])message.getObjContents().get(0), aesKey); //Extract the groupName
 								UserToken yourToken = crypto.extractToken(message, 1, aesKey); //Extract the token
 								byte[] hashedToken = crypto.decryptAESBytes((byte [])message.getObjContents().get(2), aesKey); //Extract signed token hash
-								//TODO check token
-								response = new Envelope("OK");
 								byte [] mems;
-								if(!groupName.isEmpty() || !groupName.contains("/")|| !groupName.contains("/") || !groupName.contains(" ") || !groupName.contains("[") || !groupName.contains("]") || !groupName.contains(":") || !groupName.contains(",")){
-									try{
-										mems = crypto.encryptAES(listMembers(groupName, yourToken).toString(), aesKey);
-										response.addObject(mems);
-									}catch(NullPointerException e){
-										response = new Envelope("FAIL");
+								//TODO check token
+								if(!yourToken.getTarget().equals(Base64.encodeBase64String(my_gs.keyRing.getKey("rsa_pub").getEncoded()))){
+									System.err.println("Token was not signed for use with this server.");
+								}
+								else if(!groupName.isEmpty() || !groupName.contains("/")|| !groupName.contains("/") || !groupName.contains(" ") || !groupName.contains("[") || !groupName.contains("]") || !groupName.contains(":") || !groupName.contains(",")){
+									if(yourToken.getSubject().equals(getGroupOwner(groupName))){
+										try{
+											mems = crypto.encryptAES(listMembers(groupName, yourToken).toString(), aesKey);
+											response = new Envelope("OK");
+											response.addObject(mems);
+										}catch(NullPointerException e){
+											response = new Envelope("FAIL");
+										}
 									}
 							 	}
 							}
@@ -276,7 +295,10 @@ public class GroupThread extends Thread
 									UserToken yourToken = crypto.extractToken(message, 2, aesKey); //Extract the token
 									byte[] hashedToken = crypto.decryptAESBytes((byte [])message.getObjContents().get(3), aesKey); //Extract signed token hash
 									//TODO check token
-									if(!groupName.isEmpty() || !groupName.contains("/")|| !groupName.contains("/") || !groupName.contains(" ") || !groupName.contains("[") || !groupName.contains("]") || !groupName.contains(":") || !groupName.contains(",")){
+									if(!yourToken.getTarget().equals(Base64.encodeBase64String(my_gs.keyRing.getKey("rsa_pub").getEncoded()))){
+										System.err.println("Token was not signed for use with this server.");
+									}
+									else if(!groupName.isEmpty() || !groupName.contains("/")|| !groupName.contains("/") || !groupName.contains(" ") || !groupName.contains("[") || !groupName.contains("]") || !groupName.contains(":") || !groupName.contains(",")){
 										if(addUserToGroup(username, groupName, yourToken)){
 											response = new Envelope("OK");
 										}
@@ -301,8 +323,10 @@ public class GroupThread extends Thread
 									UserToken yourToken = crypto.extractToken(message, 2, aesKey); //Extract the token
 									byte[] hashedToken = crypto.decryptAESBytes((byte [])message.getObjContents().get(3), aesKey); //Extract signed token hash
 									//TODO check token
-
-									if(!groupName.isEmpty() || !groupName.contains("/")|| !groupName.contains("/") || !groupName.contains(" ") || !groupName.contains("[") || !groupName.contains("]") || !groupName.contains(":") || !groupName.contains(",")){
+									if(!yourToken.getTarget().equals(Base64.encodeBase64String(my_gs.keyRing.getKey("rsa_pub").getEncoded()))){
+										System.err.println("Token was not signed for use with this server.");
+									}
+									else if(!groupName.isEmpty() || !groupName.contains("/")|| !groupName.contains("/") || !groupName.contains(" ") || !groupName.contains("[") || !groupName.contains("]") || !groupName.contains(":") || !groupName.contains(",")){
 										if(removeUserFromGroup(username, groupName, yourToken)){
 											response = new Envelope("OK");
 										}
@@ -360,6 +384,17 @@ public class GroupThread extends Thread
 		System.err.printf("Error: Group %s not found!\n", groupName);
 		return false;
 	}
+
+	private String getGroupOwner(String groupName){
+		for (Group g : my_gs.groupList){
+			if(g.name.equals(groupName)){ 			//Finds a group by name
+				return g.owner;
+			}
+		}
+		System.err.printf("Error: Group %s not found!\n", groupName);
+		return null;
+	}
+
 	//Adds a user to a group on the server
 	private boolean addUserToGroup(String username, String groupName, UserToken token){
 		if(my_gs.userList.checkUser(username)){
