@@ -11,7 +11,7 @@ import org.apache.commons.codec.binary.Base64;
 
 //Wrapper class for KeyStore to fit our needs
 public class KeyRing implements Serializable{
-   
+
     private String alias;
     private HashMap<String, Key> ring;
     private static final long serialVersionUID = 42L;
@@ -48,6 +48,7 @@ public class KeyRing implements Serializable{
         if(alias == null || alias.equals("")){
             return null;
         }
+        System.out.printf("Key for %s: %s\n", alias, Base64.encodeBase64String(ring.get(alias).getEncoded()));
         return ring.get(alias);
     }
 
@@ -61,7 +62,7 @@ public class KeyRing implements Serializable{
     //         // parser = new PEMParser(new FileReader(keyFile));
     //         // Object obj = parser.readObject();
     //         PEMReader pem = new PEMReader(new FileReader(keyFile));
-    //         RSACryptoServiceProvider rsa = pem.ReadPrivateKeyFromFile(keyFile);            
+    //         RSACryptoServiceProvider rsa = pem.ReadPrivateKeyFromFile(keyFile);
     //         // System.out.println(obj.getClass());
     //     }catch(Exception ex){
     //         System.out.println("Error reading PEM file: " + ex);
@@ -75,7 +76,7 @@ public class KeyRing implements Serializable{
     //     JcaPEMWriter writer = null;
     //     System.out.println(key.getClass());
     //     try{
-    //         fileOutStream = new FileOutputStream(keyFile); 
+    //         fileOutStream = new FileOutputStream(keyFile);
     //         writer = new JcaPEMWriter(new OutputStreamWriter(fileOutStream));
     //         writer.writeObject(key);
     //         writer.close();

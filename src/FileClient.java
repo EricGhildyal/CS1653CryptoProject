@@ -59,6 +59,21 @@ public class FileClient extends Client implements FileClientInterface {
 		return true;
 	}
 
+	public String getPubKey(){
+		Envelope env = new Envelope("PUBKEY");
+		try{
+			output.writeObject(env);
+			env = (Envelope)input.readObject();
+			if(env.getMessage().equals("OK")){
+				return crypto.decryptAES((byte[])env.getObjContents().get(0), aesKey);
+			}
+			return null;
+		}catch(Exception e){
+			e.printStackTrace();
+			return null;
+		}
+	}
+
 	public boolean download(String sourceFile, String destFile, TokenTuple tokTuple) {
 
 		if (sourceFile.charAt(0)=='/') {

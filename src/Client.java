@@ -22,7 +22,8 @@ public abstract class Client {
 	/* protected keyword is like private but subclasses have access
 	 * Socket and input/output streams
 	 */
-	public TokenTuple tokTuple;
+	public TokenTuple groupTokTuple;
+	public TokenTuple fileTokTuple;
 	protected Socket sock;
 	protected ObjectOutputStream output;
 	protected ObjectInputStream input;

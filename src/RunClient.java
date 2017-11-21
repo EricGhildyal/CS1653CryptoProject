@@ -12,6 +12,7 @@ public class RunClient {
 	public static void main(String[] args) {
 		SecretKeySpec fileServKey;
 		SecretKeySpec groupServKey;
+		String fileServPubRSA;
 		GroupClient gcli = new GroupClient();
 		if(args.length >= 2){
 			if(args[0] != null && args[1] != null)
@@ -49,6 +50,11 @@ public class RunClient {
 			return;
 		}
 
+		fileServPubRSA = fcli.getPubKey();
+		if(fileServPubRSA == null){
+			System.err.println("Failed to get fileservers public key!");
+		}
+
 		int menuChoice = -1;
 		Scanner input = new Scanner(System.in);
 		while(menuChoice != 12) {
@@ -80,14 +86,14 @@ public class RunClient {
 			switch(menuChoice) {
 
 				case 0: //Get Token
-					if(getToken(input, gcli))
+					if(getToken(input, gcli, fileServPubRSA))
 						System.out.println("Successfully got Token\n");
 					else
 						System.out.println("User not found or password was incorrect");
 					break;
 
 				case 1: //Create User
-					if(gcli.tokTuple != null){
+					if(gcli.groupTokTuple != null){
 						if(createUser(input, gcli))
 							System.out.println("Successfully Created User\n");
 						else
@@ -98,7 +104,7 @@ public class RunClient {
 					break;
 
 				case 2: //Delete User
-					if(gcli.tokTuple != null){
+					if(gcli.groupTokTuple != null){
 						if(deleteUser(input, gcli))
 							System.out.println("Successfully Deleted User\n");
 						else
@@ -109,7 +115,7 @@ public class RunClient {
 					break;
 
 				case 3: //Create Group
-					if(gcli.tokTuple != null){
+					if(gcli.groupTokTuple != null){
 						if(createGroup(input, gcli))
 							System.out.println("Successfully Created Group\n");
 						else
@@ -121,7 +127,7 @@ public class RunClient {
 					break;
 
 				case 4: //Delete Group
-					if(gcli.tokTuple !=null){
+					if(gcli.groupTokTuple !=null){
 						if(deleteGroup(input, gcli))
 							System.out.println("Successfully Deleted Group\n");
 						else
@@ -132,7 +138,7 @@ public class RunClient {
 					break;
 
 				case 5: //List Members
-					if(gcli.tokTuple != null){
+					if(gcli.groupTokTuple != null){
 						if(!listMembers(input, gcli))
 							System.out.println("List Members Failed");
 					}
@@ -141,7 +147,7 @@ public class RunClient {
 					break;
 
 				case 6: //Add User To Group
-					if(gcli.tokTuple != null){
+					if(gcli.groupTokTuple != null){
 						if(addUserToGroup(input, gcli))
 							System.out.println("Successfully Added User\n");
 						else
@@ -152,7 +158,7 @@ public class RunClient {
 					break;
 
 				case 7: //Delete User From Group
-					if(gcli.tokTuple != null){
+					if(gcli.groupTokTuple != null){
 						if(deleteUserFromGroup(input, gcli))
 							System.out.println("Successfully Removed User from Group\n");
 						else
@@ -163,8 +169,8 @@ public class RunClient {
 					break;
 
 				case 8: //List Files
-					if(gcli.tokTuple != null){
-						if(!listFiles(gcli.tokTuple, fcli))
+					if(gcli.groupTokTuple != null){
+						if(!listFiles(gcli.fileTokTuple, fcli))
 							System.out.println("List Files Failed\n");
 					}
 					else
@@ -172,8 +178,8 @@ public class RunClient {
 					break;
 
 				case 9: //Upload File
-					if(gcli.tokTuple != null){
-						uploadFile(input, gcli.tokTuple, fcli);
+					if(gcli.groupTokTuple != null){
+						uploadFile(input, gcli.fileTokTuple, fcli);
 						System.out.println("");
 					}
 					else
@@ -181,8 +187,8 @@ public class RunClient {
 					break;
 
 				case 10: //Download File
-					if(gcli.tokTuple != null){
-						downloadFile(input, gcli.tokTuple, fcli);
+					if(gcli.groupTokTuple != null){
+						downloadFile(input, gcli.fileTokTuple, fcli);
 						System.out.println("");
 					}
 					else
@@ -190,8 +196,8 @@ public class RunClient {
 					break;
 
 				case 11: //Delete File
-					if(gcli.tokTuple != null){
-						deleteFile(input, gcli.tokTuple, fcli);
+					if(gcli.groupTokTuple != null){
+						deleteFile(input, gcli.fileTokTuple, fcli);
 						System.out.println();
 					}
 					else
@@ -206,7 +212,7 @@ public class RunClient {
 		}
 	}
 
-	public static boolean getToken(Scanner input, GroupClient gcli){
+	public static boolean getToken(Scanner input, GroupClient gcli, String fileServPubRSA){
 		java.io.Console console = System.console();
 		String username = "";
 		String password = "";
@@ -221,22 +227,25 @@ public class RunClient {
 				break;
 		}while(username.isEmpty() || password.isEmpty());
 
-		TokenTuple tokTuple = gcli.getToken(username, password);		//gets Usertoken from server
-		if(tokTuple == null){
+		TokenTuple groupTokTuple = gcli.getToken(username, password);		//gets Usertoken from server
+		TokenTuple fileTokTuple = gcli.getFSToken(username, password, fileServPubRSA);
+		if(groupTokTuple == null || fileTokTuple == null){
 			return false;
 		}
-		UserToken tok = tokTuple.tok;
+		UserToken tok = groupTokTuple.tok;
+		UserToken fsTok = fileTokTuple.tok;
 
-		if(tok != null) {
-			gcli.tokTuple = tokTuple;							//Saves the token to gclient
+		if(tok != null && fsTok != null) {
+			gcli.groupTokTuple = groupTokTuple;							//Saves the token to gclient
+			gcli.fileTokTuple = fileTokTuple;
 			return true;
 		}
 		return false;
 	}
 
 	public static boolean createUser(Scanner input, GroupClient gcli){
-		TokenTuple tokTuple = gcli.tokTuple;
-		if(tokTuple.tok.getGroups().contains("ADMIN")){
+		TokenTuple groupTokTuple = gcli.groupTokTuple;
+		if(groupTokTuple.tok.getGroups().contains("ADMIN")){
 
 			java.io.Console console = System.console();
 			String username = "";
@@ -254,7 +263,7 @@ public class RunClient {
 				}
 			}while(username.isEmpty() || password.isEmpty() || !password.equals(passwordConfirm));
 
-			return gcli.createUser(username, password, tokTuple);
+			return gcli.createUser(username, password, groupTokTuple);
 		}
 		else{
 			System.out.println("Admin Privledges Required To Create User");
@@ -263,15 +272,15 @@ public class RunClient {
 	}
 
 	public static boolean deleteUser(Scanner input, GroupClient gcli){
-		TokenTuple tokTuple = gcli.tokTuple;
-		if(tokTuple.tok.getGroups().contains("ADMIN")){
+		TokenTuple groupTokTuple = gcli.groupTokTuple;
+		if(groupTokTuple.tok.getGroups().contains("ADMIN")){
 			System.out.println("Enter username to delete: ");
 			String username = input.nextLine();
 			if(username.isEmpty()) {
 				System.out.println("Invalid username, please try again: ");
 				username = input.nextLine();
 			}
-			return gcli.deleteUser(username, tokTuple);
+			return gcli.deleteUser(username, groupTokTuple);
 		}
 		else{
 			System.out.println("Admin Privledges Required To delete User");
@@ -295,8 +304,8 @@ public class RunClient {
 				return false;
 		}
 
-		TokenTuple tokTuple = gcli.tokTuple;
-		if(gcli.createGroup(gName, tokTuple)) {
+		TokenTuple groupTokTuple = gcli.groupTokTuple;
+		if(gcli.createGroup(gName, groupTokTuple)) {
 			return true;
 		}
 		return false;
@@ -312,8 +321,8 @@ public class RunClient {
 			if(gName.equals("break"))
 				return false;
 		}
-		TokenTuple tokTuple = gcli.tokTuple;
-		return gcli.deleteGroup(gName, tokTuple);
+		TokenTuple groupTokTuple = gcli.groupTokTuple;
+		return gcli.deleteGroup(gName, groupTokTuple);
 	}
 
 	public static boolean listMembers(Scanner input, GroupClient gcli){
@@ -325,8 +334,8 @@ public class RunClient {
 			if(gName.equals("break"))
 				return false;
 		}
-		TokenTuple tokTuple = gcli.tokTuple;
-		ArrayList<String> members = (ArrayList<String>)gcli.listMembers(gName, tokTuple);
+		TokenTuple groupTokTuple = gcli.groupTokTuple;
+		ArrayList<String> members = (ArrayList<String>)gcli.listMembers(gName, groupTokTuple);
 		if(members != null) {
 			System.out.printf("----List of Members in %s----\n", gName);
 			for(String mem : members) {
@@ -355,8 +364,8 @@ public class RunClient {
 			if(gName.equals("break"))
 				return false;
 		}
-		TokenTuple tokTuple = gcli.tokTuple;
-		return gcli.addUserToGroup(username, gName, tokTuple);
+		TokenTuple groupTokTuple = gcli.groupTokTuple;
+		return gcli.addUserToGroup(username, gName, groupTokTuple);
 	}
 
 	public static boolean deleteUserFromGroup(Scanner input, GroupClient gcli){
@@ -376,17 +385,17 @@ public class RunClient {
 			if(gName.equals("break"))
 				return false;
 		}
-		TokenTuple tokTuple = gcli.tokTuple;
-		return gcli.deleteUserFromGroup(username, gName, tokTuple);
+		TokenTuple groupTokTuple = gcli.groupTokTuple;
+		return gcli.deleteUserFromGroup(username, gName, groupTokTuple);
 	}
 
-	public static boolean listFiles(TokenTuple tokTuple, FileClient fcli) {
+	public static boolean listFiles(TokenTuple groupTokTuple, FileClient fcli) {
 		try {
 			Thread.sleep(1000); //sleep for one second to let server upload file
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
-		List<String> files = fcli.listFiles(tokTuple);
+		List<String> files = fcli.listFiles(groupTokTuple);
 		if(files == null) {
 			System.out.println("Something went wrong with your request!");
 			return false;
@@ -399,7 +408,7 @@ public class RunClient {
 		return true;
 	}
 
-	public static boolean uploadFile(Scanner input, TokenTuple tokTuple, FileClient fcli) {
+	public static boolean uploadFile(Scanner input, TokenTuple groupTokTuple, FileClient fcli) {
 		System.out.println("Please enter the source file name: ");
 		String sourceFile = input.nextLine();
 		while(sourceFile.isEmpty()) {
@@ -425,10 +434,10 @@ public class RunClient {
 			if(gName.equals("break"))
 				return false;
 		}
-		return fcli.upload(sourceFile, destFile, gName, tokTuple);
+		return fcli.upload(sourceFile, destFile, gName, groupTokTuple);
 	}
 
-	public static boolean downloadFile(Scanner input, TokenTuple tokTuple, FileClient fcli) {
+	public static boolean downloadFile(Scanner input, TokenTuple groupTokTuple, FileClient fcli) {
 		System.out.println("Please enter the source file name: ");
 		String sourceFile = input.nextLine();
 		while(sourceFile.isEmpty()) {
@@ -446,10 +455,10 @@ public class RunClient {
 				return false;
 
 		}
-		return fcli.download(sourceFile, destFile, tokTuple);
+		return fcli.download(sourceFile, destFile, groupTokTuple);
 	}
 
-	public static boolean deleteFile(Scanner input, TokenTuple tokTuple, FileClient fcli) {
+	public static boolean deleteFile(Scanner input, TokenTuple groupTokTuple, FileClient fcli) {
 		System.out.println("Please enter the file you would like to delete: ");
 		String filename = input.nextLine();
 		while(filename.isEmpty()) {
@@ -458,7 +467,7 @@ public class RunClient {
 			if(filename.equals("break"))
 				return false;
 		}
-		return fcli.delete(filename, tokTuple);
+		return fcli.delete(filename, groupTokTuple);
 	}
 
 

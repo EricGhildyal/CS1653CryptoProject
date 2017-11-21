@@ -132,7 +132,37 @@ public class GroupThread extends Thread
 						output.writeObject(response);
 					}else{
 						UserToken yourToken = createGroupServerToken(username); //Create a token
-						System.out.println("bruhhhh");
+						//Respond to the client. On error, the client will receive a null token
+						response = new Envelope("OK");
+						byte [] tok = new byte[32];
+						byte [] uniqueStringHash;
+						if(yourToken != null){
+							//TODO uniqueStringHash needs to be encrypted with GroupServers private key
+							uniqueStringHash = crypto.sha256Bytes(yourToken.toUniqueString());
+							tok = crypto.encryptAES(yourToken.toString(), aesKey);
+							response.addObject(tok);
+							response.addObject(uniqueStringHash);
+						}else{
+							response.addObject(yourToken);
+						}
+						output.reset();
+						output.writeObject(response);
+					}
+				}else if(message.getMessage().equals("GETFS")){
+					String username = crypto.decryptAES((byte[])message.getObjContents().get(0), aesKey); //Get the username
+					String password = crypto.decryptAES((byte[])message.getObjContents().get(1), aesKey); //Get the password
+					String target = crypto.decryptAES((byte[])message.getObjContents().get(2), aesKey);
+					System.out.println("u: " + (username == null));
+					System.out.println("p: " + (password == null));
+					System.out.println("db get u and p: " + my_db.get(username, password));
+					if(username == null || password == null || !my_db.get(username, password)){
+						response = new Envelope("FAIL");
+						System.out.println("AYYYY");
+						response.addObject(null);
+						output.reset();
+						output.writeObject(response);
+					}else{
+						UserToken yourToken = createFileServerToken(username, target); //Create a token
 						//Respond to the client. On error, the client will receive a null token
 						response = new Envelope("OK");
 						byte [] tok = new byte[32];
@@ -484,6 +514,26 @@ public class GroupThread extends Thread
 		}
 	}
 
+	//Method to create tokens
+	private UserToken createFileServerToken(String username, String pubKey)
+	{
+		//Check that user exists
+		System.out.println("In createToken");
+		if(my_gs.userList.checkUser(username)){
+			System.out.println("nameExists");
+			//Issue a new token with server's name, user's name, and user's groups
+			UserToken yourToken = new Token(my_gs.name, username, my_gs.userList.getUserGroups(username), pubKey);
+			if(yourToken.getTarget() == null){
+				System.out.println("Error finding group servers public key!");
+				return null;
+			}
+			System.out.println(yourToken);
+			return yourToken;
+		}else{
+			System.out.println("Name doesn't exists");
+			return null;
+		}
+	}
 
 	//Method to create a user
 	private boolean createUser(String username, String password, UserToken yourToken)

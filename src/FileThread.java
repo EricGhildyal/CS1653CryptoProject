@@ -26,6 +26,7 @@ import org.bouncycastle.crypto.AsymmetricCipherKeyPair;
 import org.bouncycastle.crypto.params.AsymmetricKeyParameter;
 import org.bouncycastle.crypto.agreement.DHAgreement;
 import org.bouncycastle.crypto.agreement.DHBasicAgreement;
+import org.apache.commons.codec.binary.Base64;
 
 
 
@@ -118,25 +119,45 @@ public class FileThread extends Thread
 
 				// Handler to list files that this user is allowed to see
 				else if(message.getMessage().equals("LFILES")){
+					response = new Envelope("FAIL");
+
+					TokenTuple tt  = new TokenTuple(crypto.extractToken(message, 0, aesKey), crypto.decryptAESBytes((byte[])message.getObjContents().get(1), aesKey));
 					ArrayList<String> list = listFiles(message, aesKey);
+
+					if(!tt.tok.getTarget().equals(Base64.encodeBase64String(my_fs.keyRing.getKey("rsa_pub").getEncoded()))){
+						System.err.println("Token was not signed for use with this server.");
+					}
+					else {
+						response = new Envelope("OK");
+						byte [] ls = crypto.encryptAES(list.toString(), aesKey);
+						response.addObject(ls);
+					}
+					output.reset();
+					output.writeObject(response);
+				}
+
+				else if(message.getMessage().equals("PUBKEY")){
+					Key pubKey = my_fs.keyRing.getKey("rsa_pub");
 					response = new Envelope("OK");
-					System.err.println(response.getMessage()); //TODO remove this line
-					byte [] ls = crypto.encryptAES(list.toString(), aesKey);
+					byte [] ls = crypto.encryptAES(Base64.encodeBase64String(pubKey.getEncoded()), aesKey);
 					response.addObject(ls);
 					output.reset();
 					output.writeObject(response);
 				}
+
+
 				/*if(message.getMessage().equals("DHMSGS")){
 					setupDH(message);
 				}*/
 				else if(message.getMessage().equals("UPLOADF")){
 					//decrypt transmission here
+
 					if(message.getObjContents().size() < 4){
 						response = new Envelope("FAIL-BADCONTENTS");
 					}else{
 						String path = crypto.decryptAES(((byte [])message.getObjContents().get(0)), aesKey);
 						String grp = crypto.decryptAES(((byte [])message.getObjContents().get(1)), aesKey);
-						String token = crypto.decryptAES(((byte [])message.getObjContents().get(2)), aesKey);
+						UserToken token = crypto.extractToken(message, 2, aesKey);
 
 						if(path == null) {
 							response = new Envelope("FAIL-BADPATH");
@@ -144,6 +165,9 @@ public class FileThread extends Thread
 							response = new Envelope("FAIL-BADGROUP");
 						}else if(token == null) {
 							response = new Envelope("FAIL-BADTOKEN");
+						}else if(!token.getTarget().equals(Base64.encodeBase64String(my_fs.keyRing.getKey("rsa_pub").getEncoded()))){
+							System.err.println("Token was not signed for use with this server.");
+							response = new Envelope("FAIL");
 						}else{
 							response = uploadFile(path, grp, token, message, aesKey);
 						}
@@ -158,7 +182,13 @@ public class FileThread extends Thread
 					byte[] hashedToken = crypto.decryptAESBytes((byte [])message.getObjContents().get(2), aesKey); //Extract signed token hash
 					//TODO check token
 					ShareFile sf = FileServer.fileList.getFile("/"+remotePath);
-					if (sf == null) {
+					if(!t.getTarget().equals(Base64.encodeBase64String(my_fs.keyRing.getKey("rsa_pub").getEncoded()))){
+						System.err.println("Token was not signed for use with this server.");
+						message = new Envelope("FAIL");
+						output.reset();
+						output.writeObject(message);
+					}
+					else if (sf == null) {
 						System.out.printf("Error: File %s doesn't exist\n", remotePath);
 						message = new Envelope("ERROR_FILEMISSING");
 						output.reset();
@@ -234,10 +264,17 @@ public class FileThread extends Thread
 					String remotePath = crypto.decryptAES((byte [])message.getObjContents().get(0), aesKey);
 					Token t = (Token)crypto.extractToken(message, 1, aesKey);
 					byte[] hashedToken = crypto.decryptAESBytes((byte [])message.getObjContents().get(2), aesKey); //Extract signed token hash
-					//TODO check token
-					message = deleteFile(remotePath, t);
-					output.reset();
-					output.writeObject(message);
+					if(!t.getTarget().equals(Base64.encodeBase64String(my_fs.keyRing.getKey("rsa_pub").getEncoded()))){
+						System.err.println("Token was not signed for use with this server.");
+						message = new Envelope("FAIL");
+						output.reset();
+						output.writeObject(message);
+					}else{
+						//TODO check token
+						message = deleteFile(remotePath, t);
+						output.reset();
+						output.writeObject(message);
+					}
 				}
 				else if(message.getMessage().equals("DISCONNECT"))
 				{
@@ -273,11 +310,11 @@ public class FileThread extends Thread
 		return list;
 	}
 
-	private Envelope uploadFile(String path, String grp, String token, Envelope message, Key aesKey){
+	private Envelope uploadFile(String path, String grp, UserToken token, Envelope message, Key aesKey){
 		Envelope response = new Envelope("FAIL");
 		String remotePath = path;
 		String group = grp;
-		UserToken yourToken = crypto.extractToken(message, 2, aesKey); //Extract token
+		UserToken yourToken = token; //Extract token
 		byte[] hashedToken = crypto.decryptAESBytes((byte [])message.getObjContents().get(3), aesKey); //Extract signed token hash
 		//TODO check token
 		try{
