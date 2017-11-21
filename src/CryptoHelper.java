@@ -201,7 +201,7 @@ public class CryptoHelper{
         KeyRing newKr = null;
         ObjectInputStream inStream;
         try{
-            inStream = new ObjectInputStream(new FileInputStream(kr.getAlias() + "_keys" + File.pathSeparatorChar + "keys.bin"));
+            inStream = new ObjectInputStream(new FileInputStream(kr.getAlias() + "_keys" + "/keys.bin"));
             newKr = (KeyRing) inStream.readObject();
         }catch(Exception e){
             System.err.println("Error loading KeyRing: " + e);
