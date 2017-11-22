@@ -36,6 +36,7 @@ public class FileServer extends Server {
 
 	public FileServer(int _port) {
 		super(_port, "FilePile");
+		crypto = new CryptoHelper();
 		keyRing = new KeyRing("FileServer");
 		if(keyRing.exists()){
 			keyRing = crypto.loadRing(keyRing);

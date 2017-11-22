@@ -31,6 +31,7 @@ public class KeyRing implements Serializable{
     public boolean exists(){
         File keysFolder = new File(alias+"_keys");
         if(!keysFolder.isDirectory()){
+
             return false;
         }
         return true;
