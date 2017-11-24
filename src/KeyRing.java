@@ -12,31 +12,35 @@ import org.apache.commons.codec.binary.Base64;
 //Wrapper class for KeyStore to fit our needs
 public class KeyRing implements Serializable{
 
-    private String alias;
+    private String ringAlias;
     private HashMap<String, Key> ring;
     private static final long serialVersionUID = 42L;
 
     public KeyRing(String name){
-        this.alias = name;
+        this.ringAlias = name;
         ring = new HashMap<String, Key>();
     }
 
     //setup folder for saving/loading
     public void init(){
-        File keysFolder = new File(alias+"_keys");
+        File keysFolder = new File(ringAlias+"_keys");
         keysFolder.mkdir();
     }
 
-    // check if folder named keys exists or not, create if it doesn't
+    // check if folder named keys exists or not
     public boolean exists(){
-        File keysFolder = new File(alias+"_keys");
-        if(!keysFolder.isDirectory()){
-
+        File keysFolder = new File(ringAlias+"_keys");
+        if(!keysFolder.isDirectory() || !keysFolder.exists()){
             return false;
         }
-        return true;
+        File[] files = keysFolder.listFiles();
+        if(files.length > 0){ //key files exist
+            return true;
+        }
+        return false;
     }
 
+    // add key to key ring with name "alias"
     public boolean addKey(String alias, Key key){
         if(alias == null || alias.equals("")){
             return false;
@@ -45,16 +49,17 @@ public class KeyRing implements Serializable{
         return true;
     }
 
+    // return key with name "alias"
     public Key getKey(String alias){
         if(alias == null || alias.equals("")){
             return null;
         }
-        System.out.printf("Key for %s: %s\n", alias, Base64.encodeBase64String(ring.get(alias).getEncoded()));
+        // System.out.printf("Key for %s: %s\n", alias, Base64.encodeBase64String(ring.get(alias).getEncoded()));
         return ring.get(alias);
     }
 
     public String getAlias(){
-        return alias;
+        return ringAlias;
     }
 
     // private Key readPemFile(File keyFile){
