@@ -188,7 +188,7 @@ public class CryptoHelper{
     public boolean saveRing(KeyRing kr){
         ObjectOutputStream outStream;
         try{
-            File f = new File(kr.getAlias() + "_keys" + File.pathSeparatorChar + "keys.bin");
+            File f = new File(kr.getAlias() + "_keys" + File.separator + "keys.bin");
             f.createNewFile();
             outStream = new ObjectOutputStream(new FileOutputStream(f));
             outStream.writeObject(kr);
