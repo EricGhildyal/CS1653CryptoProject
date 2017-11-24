@@ -183,6 +183,22 @@ public class CryptoHelper{
         return out;
     }
 
+    public Envelope addMessageNumber(Envelope toAdd,int num){
+        Envelope ret = new Envelope(toAdd.getMessage());
+        ret.addObject(num);
+        for(int i = 0; i < toAdd.getObjContents().size(); i++){
+            ret.addObject(toAdd.getObjContents().get(i));
+        }
+        return ret;
+    }
+    public Envelope removeMessageNumber(Envelope toAdd){
+        Envelope ret = new Envelope(toAdd.getMessage());
+        for(int i = 0; i < toAdd.getObjContents().size()-1; i++){
+            ret.addObject(toAdd.getObjContents().get(i+1));
+        }
+        return ret;
+    }
+
     // ============================== KeyRing methods ==============================
 
     public boolean saveRing(KeyRing kr){

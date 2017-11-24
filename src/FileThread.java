@@ -36,9 +36,12 @@ public class FileThread extends Thread
 	private final Socket socket;
 	final ObjectInputStream input;
 	final ObjectOutputStream output;
-	BigInteger confidentialityKey;
-	BigInteger integrityKey;
-	CryptoHelper crypto;
+	private BigInteger confidentialityKey;
+	private BigInteger integrityKey;
+	private CryptoHelper crypto;
+	private ArrayList<Envelope> msgs;
+	private int msgSent;
+	private int msgReceived;
 
 	public FileThread(Socket _socket, FileServer my_fs) throws IOException, ClassNotFoundException
 	{
@@ -46,6 +49,9 @@ public class FileThread extends Thread
 		System.out.println("Setting up connection...");
 		crypto = new CryptoHelper();
 		socket = _socket;
+		msgs = new ArrayList<Envelope>();
+		msgSent = 0;
+		msgReceived = 0;
 		input = new ObjectInputStream(socket.getInputStream());
 		output = new ObjectOutputStream(socket.getOutputStream());
 
@@ -75,8 +81,10 @@ public class FileThread extends Thread
 			Envelope serverPub = new Envelope("key");
 			serverPub.addObject(pubKey);
 			serverPub.addObject(pubIntKey);
+			serverPub = crypto.addMessageNumber(serverPub, msgSent);
 			output.reset();
 			output.writeObject(serverPub);
+			msgSent++;
 			DHPublicKeyParameters clientPub = new DHPublicKeyParameters(clientPubKey, params);
 			//create the agreement to make the session key
 			DHBasicAgreement keyAgree = new DHBasicAgreement();
@@ -102,158 +110,183 @@ public class FileThread extends Thread
 			Envelope response;
 			Key aesKey = null;
 			boolean dhDone = false;
+			Envelope message;
 			do{
-				Envelope message = (Envelope)input.readObject();
-				System.out.println("Request received: " + message.getMessage());
-
-				//DO NOT DO ANYTHING UNTIL DH IS DONE
-				if(!dhDone){
-					if(message.getMessage().equals("DHMSGS")){
-						if(setupDH(message)){
-							dhDone = true;
-							aesKey = new SecretKeySpec(confidentialityKey.toByteArray(),"AES");
-						}
-					}
-				}
-
-				//LIST ALL THE FILES THE REQUESTING USER IS ALLOWED TO SEE
-				//Message Structure: {stringifiedToken, tokenSignature}
-				else if(message.getMessage().equals("LFILES")){
-					TokenTuple requestTokTup  = new TokenTuple(crypto.extractToken(message, 0, aesKey), crypto.decryptAESBytes((byte[])message.getObjContents().get(1), aesKey));
-					ArrayList<String> list = listFiles(message, aesKey);
-
-					if(!crypto.checkTarget(requestTokTup.tok.getTarget(), my_fs.keyRing.getKey("rsa_pub"))){
-						response = new Envelope("FAIL-INCORRECTTARGET");
-					}
-					else if(!crypto.verify(integrityKey, message, input)){
-						response = new Envelope("FAIL-MESSAGEMODIFIED");
+				try{
+					if(msgs.get(msgReceived) != null){
+						message = msgs.get(msgReceived);
 					}
 					else{
-						response = new Envelope("OK");
-						byte [] ls = crypto.encryptAES(list.toString(), aesKey);
-						response.addObject(ls);
-					}
-					output.reset();
-					output.writeObject(response);
-					crypto.getHash(integrityKey, response, output);
-				}
-
-				//RETURN THIS SERVERS PUBLIC RSA KEY
-				//Message Structure: {}
-				else if(message.getMessage().equals("PUBKEY")){
-					System.out.println(my_fs);
-					System.out.println(my_fs.keyRing);
-					System.out.println(my_fs.keyRing.getKey("rsa_pub"));
-					Key pubKey = my_fs.keyRing.getKey("rsa_pub");
-					if(pubKey != null){
-						response = new Envelope("OK");
-						byte[] pubKeyByte = crypto.encryptAES(Base64.encodeBase64String(pubKey.getEncoded()), aesKey);
-						response.addObject(pubKeyByte);
-					}
-					else{
-						response = new Envelope("FAIL-PUBKEY_FETCH_ERROR");
-					}
-					output.reset();
-					output.writeObject(response);
-					crypto.getHash(integrityKey, response, output);
-				}
-
-
-				//UPLOAD A FILE
-				//Message Structure: {destinationFile, groupName, stringifiedToken, tokenSignature}
-				else if(message.getMessage().equals("UPLOADF")){
-					//decrypt transmission here
-
-					if(message.getObjContents().size() < 4){
-						response = new Envelope("FAIL-BADCONTENTS");
-					}
-					else if(!crypto.verify(integrityKey, message, input)){
-						response = new Envelope("FAIL-MESSAGEMODIFIED");
-					}
-					else{
-						String path = crypto.decryptAES(((byte [])message.getObjContents().get(0)), aesKey);
-						String grp = crypto.decryptAES(((byte [])message.getObjContents().get(1)), aesKey);
-						TokenTuple requestTokTup  = new TokenTuple(crypto.extractToken(message, 2, aesKey), crypto.decryptAESBytes((byte[])message.getObjContents().get(3), aesKey));
-
-						if(path == null) {
-							response = new Envelope("FAIL-BADPATH");
-						}else if(grp == null) {
-							response = new Envelope("FAIL-BADGROUP");
-						}else if(requestTokTup.tok == null) {
-							response = new Envelope("FAIL-BADTOKEN");
-						}else if(!crypto.checkTarget(requestTokTup.tok.getTarget(), my_fs.keyRing.getKey("rsa_pub"))){
-							response = new Envelope("FAIL-INCORRECTTARGET");
-						}else {
-							response = uploadFile(path, grp, requestTokTup.tok, message, aesKey);
-						}
-					}
-					output.reset();
-					output.writeObject(response);
-					crypto.getHash(integrityKey, response, output);
-				}
-
-
-				//DOWNLOAD A FILE
-				//Message Structure: {sourceFile, stringifiedToken, tokenSignature}
-				else if (message.getMessage().compareTo("DOWNLOADF")==0) {
-					String remotePath = crypto.decryptAES((byte [])message.getObjContents().get(0), aesKey);
-					TokenTuple requestTokTup  = new TokenTuple(crypto.extractToken(message, 1, aesKey), crypto.decryptAESBytes((byte[])message.getObjContents().get(2), aesKey));
-
-					//TODO check token
-					ShareFile sf = FileServer.fileList.getFile("/"+remotePath);
-					if(!crypto.checkTarget(requestTokTup.tok.getTarget(), my_fs.keyRing.getKey("rsa_pub"))){
-						response = new Envelope("FAIL-INCORRECTTARGET");
-					}
-					else if (sf == null) {
-						response = new Envelope("ERROR_FILEMISSING");
-					}
-					else if(!crypto.verify(integrityKey, message, input)){
-						response = new Envelope("FAIL");
-					}
-					else if (!requestTokTup.tok.getGroups().contains(sf.getGroup())){
-						response = new Envelope("ERROR_PERMISSION");
-					}else{
-						response = downloadFile(message, remotePath, aesKey);
+						message = (Envelope)input.readObject();
 					}
 				}
-
-				//DELETE A FILE
-				//Message Structure: {fileToDelete, stringifiedToken, tokenSignature}
-				else if (message.getMessage().compareTo("DELETEF")==0) {
-
-					String remotePath = crypto.decryptAES((byte [])message.getObjContents().get(0), aesKey);
-					TokenTuple requestTokTup  = new TokenTuple(crypto.extractToken(message, 1, aesKey), crypto.decryptAESBytes((byte[])message.getObjContents().get(2), aesKey));
-
-					if(!requestTokTup.tok.getTarget().equals(Base64.encodeBase64String(my_fs.keyRing.getKey("rsa_pub").getEncoded()))){
-						response = new Envelope("FAIL-INCORRECTTARGET");
-					}else if(!crypto.verify(integrityKey, message, input)){
-						response = new Envelope("FAIL-INTEGRITYERROR");
-					}
-					else{
-						//TODO check token
-						message = deleteFile(remotePath, requestTokTup.tok);
-					}
-					output.reset();
-					output.writeObject(message);
-					crypto.getHash(integrityKey, message, output);
+				catch(IndexOutOfBoundsException e){
+					message = (Envelope)input.readObject();
 				}
-
-				//DISCONNECT
-				//Message Structure: {}
-				else if(message.getMessage().equals("DISCONNECT"))
-				{
-					crypto.saveRing(my_fs.keyRing);
-					socket.close();
-					proceed = false;
+				System.out.println(message.getMessage());
+				if((int)message.getObjContents().get(0) != msgReceived){
+					msgs.add((int)message.getObjContents().get(0), message);
+					while((int)message.getObjContents().get(0) != msgReceived){
+						message = (Envelope)input.readObject();
+					}
 				}
-
-				//UNRECOGNIZED REQUEST
 				else{
-					response = new Envelope("FAIL"); //Server does not understand client request
-					System.err.println("WHAT:" + 	message.getMessage()); //TODO remove this line
-					output.reset();
-					output.writeObject(response);
-					crypto.getHash(integrityKey, response, output);
+					message = crypto.removeMessageNumber(message);
+					msgReceived++;
+					
+					System.out.println("Request received: " + message.getMessage());
+
+					//DO NOT DO ANYTHING UNTIL DH IS DONE
+					if(!dhDone){
+						if(message.getMessage().equals("DHMSGS")){
+							if(setupDH(message)){
+								dhDone = true;
+								aesKey = new SecretKeySpec(confidentialityKey.toByteArray(),"AES");
+							}
+						}
+					}
+
+					//LIST ALL THE FILES THE REQUESTING USER IS ALLOWED TO SEE
+					//Message Structure: {stringifiedToken, tokenSignature}
+					else if(message.getMessage().equals("LFILES")){
+						TokenTuple requestTokTup  = new TokenTuple(crypto.extractToken(message, 0, aesKey), crypto.decryptAESBytes((byte[])message.getObjContents().get(1), aesKey));
+						ArrayList<String> list = listFiles(message, aesKey);
+
+						if(!crypto.checkTarget(requestTokTup.tok.getTarget(), my_fs.keyRing.getKey("rsa_pub"))){
+							response = new Envelope("FAIL-INCORRECTTARGET");
+						}
+						else if(!crypto.verify(integrityKey, message, input)){
+							response = new Envelope("FAIL-MESSAGEMODIFIED");
+						}
+						else{
+							response = new Envelope("OK");
+							byte [] ls = crypto.encryptAES(list.toString(), aesKey);
+							response.addObject(ls);
+						}
+						output.reset();
+						output.writeObject(response);
+						crypto.getHash(integrityKey, response, output);
+					}
+
+					//RETURN THIS SERVERS PUBLIC RSA KEY
+					//Message Structure: {}
+					else if(message.getMessage().equals("PUBKEY")){
+						//x`System.out.println(my_fs);
+						//System.out.println(my_fs.keyRing);
+						//System.out.println(my_fs.keyRing.getKey("rsa_pub"));
+						Key pubKey = my_fs.keyRing.getKey("rsa_pub");
+						if(pubKey != null){
+							response = new Envelope("OK");
+							byte[] pubKeyByte = crypto.encryptAES(Base64.encodeBase64String(pubKey.getEncoded()), aesKey);
+							response.addObject(pubKeyByte);
+						}
+						else{
+							response = new Envelope("FAIL-PUBKEY_FETCH_ERROR");
+						}
+						output.reset();
+						response = crypto.addMessageNumber(response, msgSent);
+						output.writeObject(response);
+						msgSent++;
+						crypto.getHash(integrityKey, response, output);
+					}
+
+
+					//UPLOAD A FILE
+					//Message Structure: {destinationFile, groupName, stringifiedToken, tokenSignature}
+					else if(message.getMessage().equals("UPLOADF")){
+						//decrypt transmission here
+
+						if(message.getObjContents().size() < 4){
+							response = new Envelope("FAIL-BADCONTENTS");
+						}
+						else if(!crypto.verify(integrityKey, message, input)){
+							response = new Envelope("FAIL-MESSAGEMODIFIED");
+						}
+						else{
+							String path = crypto.decryptAES(((byte [])message.getObjContents().get(0)), aesKey);
+							String grp = crypto.decryptAES(((byte [])message.getObjContents().get(1)), aesKey);
+							TokenTuple requestTokTup  = new TokenTuple(crypto.extractToken(message, 2, aesKey), crypto.decryptAESBytes((byte[])message.getObjContents().get(3), aesKey));
+
+							if(path == null) {
+								response = new Envelope("FAIL-BADPATH");
+							}else if(grp == null) {
+								response = new Envelope("FAIL-BADGROUP");
+							}else if(requestTokTup.tok == null) {
+								response = new Envelope("FAIL-BADTOKEN");
+							}else if(!crypto.checkTarget(requestTokTup.tok.getTarget(), my_fs.keyRing.getKey("rsa_pub"))){
+								response = new Envelope("FAIL-INCORRECTTARGET");
+							}else {
+								response = uploadFile(path, grp, requestTokTup.tok, message, aesKey);
+							}
+						}
+						output.reset();
+						output.writeObject(response);
+						crypto.getHash(integrityKey, response, output);
+					}
+
+
+					//DOWNLOAD A FILE
+					//Message Structure: {sourceFile, stringifiedToken, tokenSignature}
+					else if (message.getMessage().compareTo("DOWNLOADF")==0) {
+						String remotePath = crypto.decryptAES((byte [])message.getObjContents().get(0), aesKey);
+						TokenTuple requestTokTup  = new TokenTuple(crypto.extractToken(message, 1, aesKey), crypto.decryptAESBytes((byte[])message.getObjContents().get(2), aesKey));
+
+						//TODO check token
+						ShareFile sf = FileServer.fileList.getFile("/"+remotePath);
+						if(!crypto.checkTarget(requestTokTup.tok.getTarget(), my_fs.keyRing.getKey("rsa_pub"))){
+							response = new Envelope("FAIL-INCORRECTTARGET");
+						}
+						else if (sf == null) {
+							response = new Envelope("ERROR_FILEMISSING");
+						}
+						else if(!crypto.verify(integrityKey, message, input)){
+							response = new Envelope("FAIL");
+						}
+						else if (!requestTokTup.tok.getGroups().contains(sf.getGroup())){
+							response = new Envelope("ERROR_PERMISSION");
+						}else{
+							response = downloadFile(message, remotePath, aesKey);
+						}
+					}
+
+					//DELETE A FILE
+					//Message Structure: {fileToDelete, stringifiedToken, tokenSignature}
+					else if (message.getMessage().compareTo("DELETEF")==0) {
+
+						String remotePath = crypto.decryptAES((byte [])message.getObjContents().get(0), aesKey);
+						TokenTuple requestTokTup  = new TokenTuple(crypto.extractToken(message, 1, aesKey), crypto.decryptAESBytes((byte[])message.getObjContents().get(2), aesKey));
+
+						if(!requestTokTup.tok.getTarget().equals(Base64.encodeBase64String(my_fs.keyRing.getKey("rsa_pub").getEncoded()))){
+							response = new Envelope("FAIL-INCORRECTTARGET");
+						}else if(!crypto.verify(integrityKey, message, input)){
+							response = new Envelope("FAIL-INTEGRITYERROR");
+						}
+						else{
+							//TODO check token
+							message = deleteFile(remotePath, requestTokTup.tok);
+						}
+						output.reset();
+						output.writeObject(message);
+						crypto.getHash(integrityKey, message, output);
+					}
+
+					//DISCONNECT
+					//Message Structure: {}
+					else if(message.getMessage().equals("DISCONNECT"))
+					{
+						crypto.saveRing(my_fs.keyRing);
+						socket.close();
+						proceed = false;
+					}
+
+					//UNRECOGNIZED REQUEST
+					else{
+						response = new Envelope("FAIL"); //Server does not understand client request
+						System.err.println("WHAT:" + 	message.getMessage()); //TODO remove this line
+						output.reset();
+						output.writeObject(response);
+						crypto.getHash(integrityKey, response, output);
+					}
 				}
 			} while(proceed);
 		}catch(java.net.SocketException s){

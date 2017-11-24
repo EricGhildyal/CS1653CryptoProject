@@ -37,9 +37,12 @@ public class GroupThread extends Thread
 	private UserPasswordDB my_db;
 	final ObjectInputStream input;
 	final ObjectOutputStream output;
-	BigInteger confidentialityKey;
-	BigInteger integrityKey;
-	CryptoHelper crypto;
+	private BigInteger confidentialityKey;
+	private BigInteger integrityKey;
+	private CryptoHelper crypto;
+	private int msgSent;
+	private int msgReceived;
+	private ArrayList<Envelope> msgs;
 
 	public GroupThread(Socket _socket, GroupServer _gs, UserPasswordDB db) throws IOException, ClassNotFoundException
 	{
@@ -47,6 +50,9 @@ public class GroupThread extends Thread
 		socket = _socket;
 		my_gs = _gs;
 		my_db = db;
+		msgSent = 0;
+		msgReceived = 0;
+		msgs = new ArrayList<Envelope>();
 		input = new ObjectInputStream(socket.getInputStream());
 		output = new ObjectOutputStream(socket.getOutputStream());
 	}
@@ -75,8 +81,10 @@ public class GroupThread extends Thread
 			Envelope serverPub = new Envelope("key");
 			serverPub.addObject(pubKey);
 			serverPub.addObject(pubIntKey);
+			serverPub = crypto.addMessageNumber(serverPub, msgSent);
 			output.reset();
 			output.writeObject(serverPub);
+			msgSent++;
 			DHPublicKeyParameters clientPub = new DHPublicKeyParameters(clientPubKey, params);
 			//create the agreement to make the session key
 			DHBasicAgreement keyAgree = new DHBasicAgreement();
@@ -103,43 +111,115 @@ public class GroupThread extends Thread
 			//create new AES key from Diffie Hellman
 			Key aesKey = null;
 			boolean dhDone = false;
+			Envelope message;
 			do{
-				Envelope message = (Envelope)input.readObject();
-				System.out.println("Request received: " + message.getMessage());
-				Envelope response;
-				//busy wait until DH is done
-				if(!dhDone){
-					while(!dhDone){
-						System.out.println("dh loop"); //TODO remove
-						if(message.getMessage().equals("DHMSGS")){
-							if(setupDH(message)){
-								dhDone = true;
-								aesKey = new SecretKeySpec(confidentialityKey.toByteArray(),"AES");
+				try{
+					if(msgs.get(msgReceived) != null){
+						message = msgs.get(msgReceived);
+					}
+					else{
+						message = (Envelope)input.readObject();
+					}
+				}
+				catch(IndexOutOfBoundsException e){
+					message = (Envelope)input.readObject();
+				}
+				if((int)message.getObjContents().get(0) != msgReceived){
+					msgs.add((int)message.getObjContents().get(0), message);
+					while((int)message.getObjContents().get(0) != msgReceived){
+						message = (Envelope)input.readObject();
+					}
+				}
+				else{
+					message = crypto.removeMessageNumber(message);
+					msgReceived++;
+					System.out.println("Request received: " + message.getMessage());
+					Envelope response;
+					//busy wait until DH is done
+					if(!dhDone){
+						while(!dhDone){
+							System.out.println("dh loop"); //TODO remove
+							if(message.getMessage().equals("DHMSGS")){
+								if(setupDH(message)){
+									dhDone = true;
+									aesKey = new SecretKeySpec(confidentialityKey.toByteArray(),"AES");
+								}
 							}
 						}
 					}
-				}
-				else if(message.getMessage().equals("GET")){ //Client wants a token
-					String username = crypto.decryptAES((byte[])message.getObjContents().get(0), aesKey); //Get the username
-					String password = crypto.decryptAES((byte[])message.getObjContents().get(1), aesKey); //Get the password
-					if(!crypto.verify(integrityKey, message, input)){
-						response = new Envelope("FAIL-1");
-						response.addObject(null);
-						output.reset();
-						output.writeObject(response);
-						crypto.getHash(integrityKey, response, output);
-					}
-					else{
-
-						if(username == null || password == null || !my_db.get(username, password)){
-							response = new Envelope("FAIL-2");
-
+					else if(message.getMessage().equals("GET")){ //Client wants a token
+						String username = crypto.decryptAES((byte[])message.getObjContents().get(0), aesKey); //Get the username
+						String password = crypto.decryptAES((byte[])message.getObjContents().get(1), aesKey); //Get the password
+						if(!crypto.verify(integrityKey, message, input)){
+							response = new Envelope("FAIL-1");
 							response.addObject(null);
+							response = crypto.addMessageNumber(response, msgSent);
 							output.reset();
 							output.writeObject(response);
+							msgSent++;
+							crypto.getHash(integrityKey, response, output);
+						}
+						else{
+
+							if(username == null || password == null || !my_db.get(username, password)){
+								response = new Envelope("FAIL-2");
+
+								response.addObject(null);
+								response = crypto.addMessageNumber(response, msgSent);
+								output.reset();
+								output.writeObject(response);
+								msgSent++;
+								crypto.getHash(integrityKey, response, output);
+							}else{
+								UserToken yourToken = createGroupServerToken(username); //Create a token
+								//Respond to the client. On error, the client will receive a null token
+								response = new Envelope("OK");
+								byte [] tok = new byte[32];
+								byte [] uniqueStringHash;
+								if(yourToken != null){
+									//TODO uniqueStringHash needs to be encrypted with GroupServers private key
+									uniqueStringHash = crypto.sha256Bytes(yourToken.toUniqueString());
+									tok = crypto.encryptAES(yourToken.toString(), aesKey);
+									response.addObject(tok);
+									response.addObject(uniqueStringHash);
+								}else{
+									response.addObject(yourToken);
+								}
+								response = crypto.addMessageNumber(response, msgSent);
+								output.reset();
+								output.writeObject(response);
+								msgSent++;
+								crypto.getHash(integrityKey, response, output);
+							}
+						}
+
+					}else if(message.getMessage().equals("GETFS")){
+						String username = crypto.decryptAES((byte[])message.getObjContents().get(0), aesKey); //Get the username
+						String password = crypto.decryptAES((byte[])message.getObjContents().get(1), aesKey); //Get the password
+						String target = crypto.decryptAES((byte[])message.getObjContents().get(2), aesKey);
+						System.out.println("u: " + (username == null));
+						System.out.println("p: " + (password == null));
+						System.out.println("db get u and p: " + my_db.get(username, password));
+						if(!crypto.verify(integrityKey, message, input)){
+							response = new Envelope("FAIL-1");
+							response.addObject(null);
+							response = crypto.addMessageNumber(response, msgSent);
+							output.reset();
+							output.writeObject(response);
+							msgSent++;
+							crypto.getHash(integrityKey, response, output);
+						}
+						else if(username == null || password == null || !my_db.get(username, password)){
+							response = new Envelope("FAIL-3");
+							System.out.println("AYYYY");
+							response.addObject(null);
+							response = crypto.addMessageNumber(response, msgSent);
+							output.reset();
+							output.writeObject(response);
+							msgSent++;
 							crypto.getHash(integrityKey, response, output);
 						}else{
-							UserToken yourToken = createGroupServerToken(username); //Create a token
+							UserToken yourToken = createFileServerToken(username, target); //Create a token
 							//Respond to the client. On error, the client will receive a null token
 							response = new Envelope("OK");
 							byte [] tok = new byte[32];
@@ -150,258 +230,107 @@ public class GroupThread extends Thread
 								tok = crypto.encryptAES(yourToken.toString(), aesKey);
 								response.addObject(tok);
 								response.addObject(uniqueStringHash);
+								}else{
+									response.addObject(yourToken);
+								}
+								response = crypto.addMessageNumber(response, msgSent);
+								output.reset();
+								output.writeObject(response);
+								msgSent++;
+								crypto.getHash(integrityKey, response, output);
+							}
+					}else if(message.getMessage().equals("CUSER")){ //Client wants to create a user
+						if(message.getObjContents().size() < 4){
+							response = new Envelope("FAIL-4");
+						}else{
+							if(!crypto.verify(integrityKey, message, input)){
+								response = new Envelope("FAIL-5");
+								/*response.addObject(null);
+								output.reset();
+								output.writeObject(response);*/
 							}else{
-								response.addObject(yourToken);
-							}
-							output.reset();
-							output.writeObject(response);
-							crypto.getHash(integrityKey, response, output);
-						}
-					}
-
-				}else if(message.getMessage().equals("GETFS")){
-					String username = crypto.decryptAES((byte[])message.getObjContents().get(0), aesKey); //Get the username
-					String password = crypto.decryptAES((byte[])message.getObjContents().get(1), aesKey); //Get the password
-					String target = crypto.decryptAES((byte[])message.getObjContents().get(2), aesKey);
-					System.out.println("u: " + (username == null));
-					System.out.println("p: " + (password == null));
-					System.out.println("db get u and p: " + my_db.get(username, password));
-					if(!crypto.verify(integrityKey, message, input)){
-						response = new Envelope("FAIL-1");
-						response.addObject(null);
-						output.reset();
-						output.writeObject(response);
-						crypto.getHash(integrityKey, response, output);
-					}
-					else if(username == null || password == null || !my_db.get(username, password)){
-						response = new Envelope("FAIL-3");
-						System.out.println("AYYYY");
-						response.addObject(null);
-						output.reset();
-						output.writeObject(response);
-						crypto.getHash(integrityKey, response, output);
-					}else{
-						UserToken yourToken = createFileServerToken(username, target); //Create a token
-						//Respond to the client. On error, the client will receive a null token
-						response = new Envelope("OK");
-						byte [] tok = new byte[32];
-						byte [] uniqueStringHash;
-						if(yourToken != null){
-							//TODO uniqueStringHash needs to be encrypted with GroupServers private key
-							uniqueStringHash = crypto.sha256Bytes(yourToken.toUniqueString());
-							tok = crypto.encryptAES(yourToken.toString(), aesKey);
-							response.addObject(tok);
-							response.addObject(uniqueStringHash);
-							}else{
-								response.addObject(yourToken);
-							}
-							output.reset();
-							output.writeObject(response);
-							crypto.getHash(integrityKey, response, output);
-						}
-				}else if(message.getMessage().equals("CUSER")){ //Client wants to create a user
-					if(message.getObjContents().size() < 4){
-						response = new Envelope("FAIL-4");
-					}else{
-						if(!crypto.verify(integrityKey, message, input)){
-							response = new Envelope("FAIL-5");
-							/*response.addObject(null);
-							output.reset();
-							output.writeObject(response);*/
-						}else{
-							response = new Envelope("FAIL-6");
-							if(message.getObjContents().get(0) != null){
-								if(message.getObjContents().get(1) != null){
-									String username = crypto.decryptAES((byte[])message.getObjContents().get(0), aesKey); //Get the username
-									String password = crypto.decryptAES((byte[])message.getObjContents().get(1), aesKey); //Get the password
-									UserToken yourToken = crypto.extractToken(message, 2, aesKey); //Extract the token
-									byte[] hashedToken = crypto.decryptAESBytes((byte [])message.getObjContents().get(3), aesKey);
-									//TODO checkToken
-									if(!yourToken.getTarget().equals(Base64.encodeBase64String(my_gs.keyRing.getKey("rsa_pub").getEncoded()))){
-										System.err.println("Token was not signed for use with this server.");
-									}
-									else if(createUser(username, password, yourToken))
-									{
-										response = new Envelope("OK"); //Success
-									}
-								}
-							}
-						}
-					}
-					output.reset();
-					output.writeObject(response);
-					crypto.getHash(integrityKey, response, output);
-				}
-
-				else if(message.getMessage().equals("DUSER")){ //Client wants to delete a user
-					if(message.getObjContents().size() < 2){
-						response = new Envelope("FAIL-7");
-					}else{
-						if(!crypto.verify(integrityKey, message, input)){
-							response = new Envelope("FAIL-8");
-							/*response.addObject(null);
-							output.reset();
-							output.writeObject(response);*/
-						}
-						else{
-							response = new Envelope("FAIL-9");
-							if(message.getObjContents().get(0) != null){
-								if(message.getObjContents().get(1) != null){
-									String username = crypto.decryptAES((byte [])message.getObjContents().get(0), aesKey); //Extract the username
-									UserToken yourToken = crypto.extractToken(message, 1, aesKey); //Extract the token
-									byte[] hashedToken = crypto.decryptAESBytes((byte [])message.getObjContents().get(2), aesKey);
-									//TODO checkToken
-									if(!yourToken.getTarget().equals(Base64.encodeBase64String(my_gs.keyRing.getKey("rsa_pub").getEncoded()))){
-										System.err.println("Token was not signed for use with this server.");
-									}
-									else if(deleteUser(username, yourToken)){
-										response = new Envelope("OK"); //Success
-									}else{
-										response = new Envelope("FAIL-10");
-									}
-								}
-							}
-						}
-					}
-					output.reset();
-					output.writeObject(response);
-					crypto.getHash(integrityKey, response, output);
-				}
-				else if(message.getMessage().equals("CGROUP")){ //Client wants to create a group
-					if(message.getObjContents().size() < 3){ //check for valid number of args
-						response = new Envelope("FAIL-11");
-					}else{
-						if(!crypto.verify(integrityKey, message, input)){
-							response = new Envelope("FAIL-12");
-							/*response.addObject(null);
-							output.reset();
-							output.writeObject(response);*/
-						} else{
-							response = new Envelope("FAIL-13");
-							if(message.getObjContents().get(0) != null){ //get groupName
-								if(message.getObjContents().get(1) != null){ //get token
-									String groupName = crypto.decryptAES((byte [])message.getObjContents().get(0), aesKey); //Extract the username
-									UserToken yourToken = crypto.extractToken(message, 1, aesKey); //Extract the token
-									byte[] hashedToken = crypto.decryptAESBytes((byte [])message.getObjContents().get(2), aesKey); //Extract signed token hash
-									//TODO check token
-									if(!yourToken.getTarget().equals(Base64.encodeBase64String(my_gs.keyRing.getKey("rsa_pub").getEncoded()))){
-										System.err.println("Token was not signed for use with this server.");
-									}
-									else if(!groupName.isEmpty() || !groupName.contains("/")|| !groupName.contains("/") || !groupName.contains(" ") || !groupName.contains("[") || !groupName.contains("]") || !groupName.contains(":") || !groupName.contains(",")){
-										System.out.println("Creating group");
-										if(createGroup(groupName, yourToken)){
-											System.out.println("Successful");
-											response = new Envelope("OK");
-										}
-									}
-								}
-							}
-						}
-					}
-					output.reset();
-					output.writeObject(response);
-					crypto.getHash(integrityKey, response, output);
-				}
-
-				else if(message.getMessage().equals("DGROUP")){ //Client wants to delete a group
-					if(message.getObjContents().size() < 3){ //check for valid number of args
-						response = new Envelope("FAIL-14");
-					}else{
-						if(!crypto.verify(integrityKey, message, input)){
-							response = new Envelope("FAIL-15");
-							/*response.addObject(null);
-							output.reset();
-							output.writeObject(response);*/
-						}else{
-						response = new Envelope("FAIL-16");
-							if(message.getObjContents().get(0) != null){ //get groupName
-								if(message.getObjContents().get(1) != null){ //get token
-									String groupName = crypto.decryptAES((byte [])message.getObjContents().get(0), aesKey); //Extract the username
-									UserToken yourToken = crypto.extractToken(message, 1, aesKey); //Extract the token
-									byte[] hashedToken = crypto.decryptAESBytes((byte [])message.getObjContents().get(2), aesKey); //Extract signed token hash
-									//TODO check token
-									if(!yourToken.getTarget().equals(Base64.encodeBase64String(my_gs.keyRing.getKey("rsa_pub").getEncoded()))){
-										System.err.println("Token was not signed for use with this server.");
-									}
-									else if(!groupName.isEmpty() || !groupName.contains("/")|| !groupName.contains("/") || !groupName.contains(" ") || !groupName.contains("[") || !groupName.contains("]") || !groupName.contains(":") || !groupName.contains(",")){
-										if(deleteGroup(groupName, yourToken)){
-											response = new Envelope("OK");
-										}
-									}
-								}
-							}
-						}
-					}
-					output.reset();
-					output.writeObject(response);
-					crypto.getHash(integrityKey, response, output);
-
-
-				}else if(message.getMessage().equals("LMEMBERS")){ //Client wants a list of members in a group
-					if(message.getObjContents().size() < 3){ //check for valid number of args
-						response = new Envelope("FAIL-17");
-					}else{
-						if(!crypto.verify(integrityKey, message, input)){
-							response = new Envelope("FAIL-18");
-							/*response.addObject(null);
-							output.reset();
-							output.writeObject(response);*/
-						}
-						else{
-							response = new Envelope("FAIL-19");
-							if(message.getObjContents().get(0) != null){ //get groupName
-								if(message.getObjContents().get(1) != null){ //get token
-									String groupName = crypto.decryptAES((byte[])message.getObjContents().get(0), aesKey); //Extract the groupName
-									UserToken yourToken = crypto.extractToken(message, 1, aesKey); //Extract the token
-									byte[] hashedToken = crypto.decryptAESBytes((byte [])message.getObjContents().get(2), aesKey); //Extract signed token hash
-									byte [] mems;
-									//TODO check token
-									if(!yourToken.getTarget().equals(Base64.encodeBase64String(my_gs.keyRing.getKey("rsa_pub").getEncoded()))){
-										System.err.println("Token was not signed for use with this server.");
-									}
-									else if(!groupName.isEmpty() || !groupName.contains("/")|| !groupName.contains("/") || !groupName.contains(" ") || !groupName.contains("[") || !groupName.contains("]") || !groupName.contains(":") || !groupName.contains(",")){
-										if(yourToken.getSubject().equals(getGroupOwner(groupName))){
-											try{
-												mems = crypto.encryptAES(listMembers(groupName, yourToken).toString(), aesKey);
-												response = new Envelope("OK");
-												response.addObject(mems);
-											}catch(NullPointerException e){
-												response = new Envelope("FAIL-20");
-											}
-										}
-									}
-								}
-							}
-						}
-					}
-					output.reset();
-					output.writeObject(response);
-					crypto.getHash(integrityKey, response, output);
-				}
-				else if(message.getMessage().equals("AUSERTOGROUP")){ //Client wants to add user to a group
-					if(message.getObjContents().size() < 4){ //check for valid number of args
-						response = new Envelope("FAIL-21");
-					}else{
-						if(!crypto.verify(integrityKey, message, input)){
-							response = new Envelope("FAIL-22");
-							/*response.addObject(null);
-							output.reset();
-							output.writeObject(response);*/
-						}else{
-							response = new Envelope("FAIL-23");
-							if(message.getObjContents().get(0) != null){ //get username
-								if(message.getObjContents().get(1) != null){ //get groupname
-									if(message.getObjContents().get(2) != null){ //get token
+								response = new Envelope("FAIL-6");
+								if(message.getObjContents().get(0) != null){
+									if(message.getObjContents().get(1) != null){
 										String username = crypto.decryptAES((byte[])message.getObjContents().get(0), aesKey); //Get the username
-										String groupName = crypto.decryptAES((byte[])message.getObjContents().get(1), aesKey); //Get the group name
+										String password = crypto.decryptAES((byte[])message.getObjContents().get(1), aesKey); //Get the password
 										UserToken yourToken = crypto.extractToken(message, 2, aesKey); //Extract the token
-										byte[] hashedToken = crypto.decryptAESBytes((byte [])message.getObjContents().get(3), aesKey); //Extract signed token hash
+										byte[] hashedToken = crypto.decryptAESBytes((byte [])message.getObjContents().get(3), aesKey);
+										//TODO checkToken
+										if(!yourToken.getTarget().equals(Base64.encodeBase64String(my_gs.keyRing.getKey("rsa_pub").getEncoded()))){
+											System.err.println("Token was not signed for use with this server.");
+										}
+										else if(createUser(username, password, yourToken))
+										{
+											response = new Envelope("OK"); //Success
+										}
+									}
+								}
+							}
+						}
+						output.reset();
+						output.writeObject(response);
+						crypto.getHash(integrityKey, response, output);
+					}
+
+					else if(message.getMessage().equals("DUSER")){ //Client wants to delete a user
+						if(message.getObjContents().size() < 2){
+							response = new Envelope("FAIL-7");
+						}else{
+							if(!crypto.verify(integrityKey, message, input)){
+								response = new Envelope("FAIL-8");
+								/*response.addObject(null);
+								output.reset();
+								output.writeObject(response);*/
+							}
+							else{
+								response = new Envelope("FAIL-9");
+								if(message.getObjContents().get(0) != null){
+									if(message.getObjContents().get(1) != null){
+										String username = crypto.decryptAES((byte [])message.getObjContents().get(0), aesKey); //Extract the username
+										UserToken yourToken = crypto.extractToken(message, 1, aesKey); //Extract the token
+										byte[] hashedToken = crypto.decryptAESBytes((byte [])message.getObjContents().get(2), aesKey);
+										//TODO checkToken
+										if(!yourToken.getTarget().equals(Base64.encodeBase64String(my_gs.keyRing.getKey("rsa_pub").getEncoded()))){
+											System.err.println("Token was not signed for use with this server.");
+										}
+										else if(deleteUser(username, yourToken)){
+											response = new Envelope("OK"); //Success
+										}else{
+											response = new Envelope("FAIL-10");
+										}
+									}
+								}
+							}
+						}
+						output.reset();
+						output.writeObject(response);
+						crypto.getHash(integrityKey, response, output);
+					}
+					else if(message.getMessage().equals("CGROUP")){ //Client wants to create a group
+						if(message.getObjContents().size() < 3){ //check for valid number of args
+							response = new Envelope("FAIL-11");
+						}else{
+							if(!crypto.verify(integrityKey, message, input)){
+								response = new Envelope("FAIL-12");
+								/*response.addObject(null);
+								output.reset();
+								output.writeObject(response);*/
+							} else{
+								response = new Envelope("FAIL-13");
+								if(message.getObjContents().get(0) != null){ //get groupName
+									if(message.getObjContents().get(1) != null){ //get token
+										String groupName = crypto.decryptAES((byte [])message.getObjContents().get(0), aesKey); //Extract the username
+										UserToken yourToken = crypto.extractToken(message, 1, aesKey); //Extract the token
+										byte[] hashedToken = crypto.decryptAESBytes((byte [])message.getObjContents().get(2), aesKey); //Extract signed token hash
 										//TODO check token
 										if(!yourToken.getTarget().equals(Base64.encodeBase64String(my_gs.keyRing.getKey("rsa_pub").getEncoded()))){
 											System.err.println("Token was not signed for use with this server.");
 										}
 										else if(!groupName.isEmpty() || !groupName.contains("/")|| !groupName.contains("/") || !groupName.contains(" ") || !groupName.contains("[") || !groupName.contains("]") || !groupName.contains(":") || !groupName.contains(",")){
-											if(addUserToGroup(username, groupName, yourToken)){
+											System.out.println("Creating group");
+											if(createGroup(groupName, yourToken)){
+												System.out.println("Successful");
 												response = new Envelope("OK");
 											}
 										}
@@ -409,67 +338,180 @@ public class GroupThread extends Thread
 								}
 							}
 						}
-					}
-					output.reset();
-					output.writeObject(response);
-					crypto.getHash(integrityKey, response, output);
-				}
-
-
-				else if(message.getMessage().equals("RUSERFROMGROUP")){ //Client wants to remove user from a group
-					if(message.getObjContents().size() < 4){ //check for valid number of args
-						response = new Envelope("FAIL-24");
-					}else{
-						if(!crypto.verify(integrityKey, message, input)){
-						response = new Envelope("FAIL-25");
-						/*response.addObject(null);
 						output.reset();
-						output.writeObject(response);*/
-					}else{
-							response = new Envelope("FAIL-26");
-							if(message.getObjContents().get(0) != null){ //get username
-								if(message.getObjContents().get(1) != null){ //get groupname
-									if(message.getObjContents().get(2) != null){ //get token
-										String username = crypto.decryptAES((byte[])message.getObjContents().get(0), aesKey); //Get the username
-										String groupName = crypto.decryptAES((byte[])message.getObjContents().get(1), aesKey); //Get the password
-										UserToken yourToken = crypto.extractToken(message, 2, aesKey); //Extract the token
-										byte[] hashedToken = crypto.decryptAESBytes((byte [])message.getObjContents().get(3), aesKey); //Extract signed token hash
+						output.writeObject(response);
+						crypto.getHash(integrityKey, response, output);
+					}
+
+					else if(message.getMessage().equals("DGROUP")){ //Client wants to delete a group
+						if(message.getObjContents().size() < 3){ //check for valid number of args
+							response = new Envelope("FAIL-14");
+						}else{
+							if(!crypto.verify(integrityKey, message, input)){
+								response = new Envelope("FAIL-15");
+								/*response.addObject(null);
+								output.reset();
+								output.writeObject(response);*/
+							}else{
+							response = new Envelope("FAIL-16");
+								if(message.getObjContents().get(0) != null){ //get groupName
+									if(message.getObjContents().get(1) != null){ //get token
+										String groupName = crypto.decryptAES((byte [])message.getObjContents().get(0), aesKey); //Extract the username
+										UserToken yourToken = crypto.extractToken(message, 1, aesKey); //Extract the token
+										byte[] hashedToken = crypto.decryptAESBytes((byte [])message.getObjContents().get(2), aesKey); //Extract signed token hash
 										//TODO check token
 										if(!yourToken.getTarget().equals(Base64.encodeBase64String(my_gs.keyRing.getKey("rsa_pub").getEncoded()))){
 											System.err.println("Token was not signed for use with this server.");
 										}
 										else if(!groupName.isEmpty() || !groupName.contains("/")|| !groupName.contains("/") || !groupName.contains(" ") || !groupName.contains("[") || !groupName.contains("]") || !groupName.contains(":") || !groupName.contains(",")){
-											if(removeUserFromGroup(username, groupName, yourToken)){
+											if(deleteGroup(groupName, yourToken)){
 												response = new Envelope("OK");
-											}
-											else{
-												response = new Envelope("FAIL-27");
 											}
 										}
 									}
 								}
 							}
 						}
+						output.reset();
+						output.writeObject(response);
+						crypto.getHash(integrityKey, response, output);
+
+
+					}else if(message.getMessage().equals("LMEMBERS")){ //Client wants a list of members in a group
+						if(message.getObjContents().size() < 3){ //check for valid number of args
+							response = new Envelope("FAIL-17");
+						}else{
+							if(!crypto.verify(integrityKey, message, input)){
+								response = new Envelope("FAIL-18");
+								/*response.addObject(null);
+								output.reset();
+								output.writeObject(response);*/
+							}
+							else{
+								response = new Envelope("FAIL-19");
+								if(message.getObjContents().get(0) != null){ //get groupName
+									if(message.getObjContents().get(1) != null){ //get token
+										String groupName = crypto.decryptAES((byte[])message.getObjContents().get(0), aesKey); //Extract the groupName
+										UserToken yourToken = crypto.extractToken(message, 1, aesKey); //Extract the token
+										byte[] hashedToken = crypto.decryptAESBytes((byte [])message.getObjContents().get(2), aesKey); //Extract signed token hash
+										byte [] mems;
+										//TODO check token
+										if(!yourToken.getTarget().equals(Base64.encodeBase64String(my_gs.keyRing.getKey("rsa_pub").getEncoded()))){
+											System.err.println("Token was not signed for use with this server.");
+										}
+										else if(!groupName.isEmpty() || !groupName.contains("/")|| !groupName.contains("/") || !groupName.contains(" ") || !groupName.contains("[") || !groupName.contains("]") || !groupName.contains(":") || !groupName.contains(",")){
+											if(yourToken.getSubject().equals(getGroupOwner(groupName))){
+												try{
+													mems = crypto.encryptAES(listMembers(groupName, yourToken).toString(), aesKey);
+													response = new Envelope("OK");
+													response.addObject(mems);
+												}catch(NullPointerException e){
+													response = new Envelope("FAIL-20");
+												}
+											}
+										}
+									}
+								}
+							}
+						}
+						output.reset();
+						output.writeObject(response);
+						crypto.getHash(integrityKey, response, output);
 					}
-					output.reset();
-					output.writeObject(response);
-					crypto.getHash(integrityKey, response, output);
-				}else if(message.getMessage().equals("DISCONNECT")){ //Client wants to disconnect
-					crypto.saveRing(my_gs.keyRing);
-					socket.close(); //Close the socket
-					proceed = false; //End this communication loop
-				}else{
-					System.out.println(message.getMessage());
-					response = new Envelope("FAIL-28"); //Server does not understand client request
-					output.reset();
-					output.writeObject(response);
+					else if(message.getMessage().equals("AUSERTOGROUP")){ //Client wants to add user to a group
+						if(message.getObjContents().size() < 4){ //check for valid number of args
+							response = new Envelope("FAIL-21");
+						}else{
+							if(!crypto.verify(integrityKey, message, input)){
+								response = new Envelope("FAIL-22");
+								/*response.addObject(null);
+								output.reset();
+								output.writeObject(response);*/
+							}else{
+								response = new Envelope("FAIL-23");
+								if(message.getObjContents().get(0) != null){ //get username
+									if(message.getObjContents().get(1) != null){ //get groupname
+										if(message.getObjContents().get(2) != null){ //get token
+											String username = crypto.decryptAES((byte[])message.getObjContents().get(0), aesKey); //Get the username
+											String groupName = crypto.decryptAES((byte[])message.getObjContents().get(1), aesKey); //Get the group name
+											UserToken yourToken = crypto.extractToken(message, 2, aesKey); //Extract the token
+											byte[] hashedToken = crypto.decryptAESBytes((byte [])message.getObjContents().get(3), aesKey); //Extract signed token hash
+											//TODO check token
+											if(!yourToken.getTarget().equals(Base64.encodeBase64String(my_gs.keyRing.getKey("rsa_pub").getEncoded()))){
+												System.err.println("Token was not signed for use with this server.");
+											}
+											else if(!groupName.isEmpty() || !groupName.contains("/")|| !groupName.contains("/") || !groupName.contains(" ") || !groupName.contains("[") || !groupName.contains("]") || !groupName.contains(":") || !groupName.contains(",")){
+												if(addUserToGroup(username, groupName, yourToken)){
+													response = new Envelope("OK");
+												}
+											}
+										}
+									}
+								}
+							}
+						}
+						output.reset();
+						output.writeObject(response);
+						crypto.getHash(integrityKey, response, output);
+					}
+
+
+					else if(message.getMessage().equals("RUSERFROMGROUP")){ //Client wants to remove user from a group
+						if(message.getObjContents().size() < 4){ //check for valid number of args
+							response = new Envelope("FAIL-24");
+						}else{
+							if(!crypto.verify(integrityKey, message, input)){
+							response = new Envelope("FAIL-25");
+							/*response.addObject(null);
+							output.reset();
+							output.writeObject(response);*/
+						}else{
+								response = new Envelope("FAIL-26");
+								if(message.getObjContents().get(0) != null){ //get username
+									if(message.getObjContents().get(1) != null){ //get groupname
+										if(message.getObjContents().get(2) != null){ //get token
+											String username = crypto.decryptAES((byte[])message.getObjContents().get(0), aesKey); //Get the username
+											String groupName = crypto.decryptAES((byte[])message.getObjContents().get(1), aesKey); //Get the password
+											UserToken yourToken = crypto.extractToken(message, 2, aesKey); //Extract the token
+											byte[] hashedToken = crypto.decryptAESBytes((byte [])message.getObjContents().get(3), aesKey); //Extract signed token hash
+											//TODO check token
+											if(!yourToken.getTarget().equals(Base64.encodeBase64String(my_gs.keyRing.getKey("rsa_pub").getEncoded()))){
+												System.err.println("Token was not signed for use with this server.");
+											}
+											else if(!groupName.isEmpty() || !groupName.contains("/")|| !groupName.contains("/") || !groupName.contains(" ") || !groupName.contains("[") || !groupName.contains("]") || !groupName.contains(":") || !groupName.contains(",")){
+												if(removeUserFromGroup(username, groupName, yourToken)){
+													response = new Envelope("OK");
+												}
+												else{
+													response = new Envelope("FAIL-27");
+												}
+											}
+										}
+									}
+								}
+							}
+						}
+						output.reset();
+						output.writeObject(response);
+						crypto.getHash(integrityKey, response, output);
+					}else if(message.getMessage().equals("DISCONNECT")){ //Client wants to disconnect
+						crypto.saveRing(my_gs.keyRing);
+						socket.close(); //Close the socket
+						proceed = false; //End this communication loop
+					}else{
+						System.out.println(message.getMessage());
+						response = new Envelope("FAIL-28"); //Server does not understand client request
+						output.reset();
+						output.writeObject(response);
+					}
 				}
 
 			}while(proceed);
 		}catch(java.net.SocketException s){
 			//do nothing
 		}catch(Exception e){
-			System.err.println("Error in file thread: " + e);
+			System.err.println("Error in file thread: ");
+			e.printStackTrace();
 		}
 	}
 

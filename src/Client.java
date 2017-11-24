@@ -27,6 +27,8 @@ public abstract class Client {
 	protected Socket sock;
 	protected ObjectOutputStream output;
 	protected ObjectInputStream input;
+	protected int msgSent;
+	protected int msgReceived;
 
 	public BigInteger confidentialityKey;
 	public BigInteger integrityKey;
@@ -44,6 +46,8 @@ public abstract class Client {
 			//Declare the output and input streams
 			output = new ObjectOutputStream(this.sock.getOutputStream());
 			input = new ObjectInputStream(this.sock.getInputStream());
+			msgSent = 0;
+			msgReceived = 0;
 			//run Diffie Hellman method to start connection
 			setupDH();
 
@@ -84,22 +88,43 @@ public abstract class Client {
 			dhMsgs.addObject(p);
 			dhMsgs.addObject(pubKey);
 			dhMsgs.addObject(pubIntKey);
-			output.writeObject(dhMsgs);
+			Envelope ret = new Envelope(dhMsgs.getMessage());
+			ret.addObject(msgSent);
+			for(int i = 0; i < dhMsgs.getObjContents().size(); i++){
+				ret.addObject(dhMsgs.getObjContents().get(i));
+			}
+			//dhMsgs = crypto.addMessageNumber(dhMsgs, msgSent);
+			output.writeObject(ret);
+			msgSent++;
 
 			//get server public key and agree on a session key
 			Envelope servPubKey = (Envelope)input.readObject();
-			ArrayList<Object> pub = servPubKey.getObjContents();
-			BigInteger serverPub = (BigInteger)pub.get(0);
-			BigInteger serverIntPub = (BigInteger)pub.get(1);
-			DHPublicKeyParameters servPub = new DHPublicKeyParameters(serverPub, params);
-			DHBasicAgreement keyAgree = new DHBasicAgreement();
-			keyAgree.init(clientKeys.getPrivate());
-			confidentialityKey = keyAgree.calculateAgreement(servPub);
-			servPub = new DHPublicKeyParameters(serverIntPub, params);
-			keyAgree = new DHBasicAgreement();
-			keyAgree.init(clientIntKeys.getPrivate());
-			integrityKey = keyAgree.calculateAgreement(servPub);
-			output.reset();
+			if((Integer)servPubKey.getObjContents().get(0) != msgReceived){
+				System.out.println("Wrong message received, aborting");
+				
+			}
+			else{
+				msgReceived++;
+				Envelope temp = new Envelope(servPubKey.getMessage());
+				for(int i = 0; i < servPubKey.getObjContents().size()-1; i++){
+					temp.addObject(servPubKey.getObjContents().get(i+1));
+				}
+				servPubKey = temp;
+				ArrayList<Object> pub = servPubKey.getObjContents();
+				BigInteger serverPub = (BigInteger)pub.get(0);
+				BigInteger serverIntPub = (BigInteger)pub.get(1);
+				DHPublicKeyParameters servPub = new DHPublicKeyParameters(serverPub, params);
+				DHBasicAgreement keyAgree = new DHBasicAgreement();
+				keyAgree.init(clientKeys.getPrivate());
+				confidentialityKey = keyAgree.calculateAgreement(servPub);
+				servPub = new DHPublicKeyParameters(serverIntPub, params);
+				keyAgree = new DHBasicAgreement();
+				keyAgree.init(clientIntKeys.getPrivate());
+				integrityKey = keyAgree.calculateAgreement(servPub);
+				output.reset();
+				//System.out.println(integrityKey);
+				//System.out.println(confidentialityKey);
+			}
 		}catch(Exception e){
 			System.out.println("Error during Diffie Hellman exchange: " + e);
 		}

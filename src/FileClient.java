@@ -69,7 +69,9 @@ public class FileClient extends Client implements FileClientInterface {
 	public String getPubKey(){
 		Envelope env = new Envelope("PUBKEY");
 		try{
+			env = crypto.addMessageNumber(env, msgSent);
 			output.writeObject(env);
+			msgSent++;
 			env = (Envelope)input.readObject();
 			if(env.getMessage().equals("OK")){
 				if(!crypto.verify(integrityKey, env, input)){

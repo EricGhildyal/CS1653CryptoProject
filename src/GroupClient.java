@@ -34,14 +34,20 @@ public class GroupClient extends Client implements GroupClientInterface {
 
 			message.addObject(usrName); //Add user name string
 			message.addObject(pass); //Add password
-
+			message = crypto.addMessageNumber(message, msgSent);
 			output.reset();
 			output.writeObject(message);
+			msgSent++;
 			crypto.getHash(integrityKey, message, output);
 
 
 			//Get the response from the server
 			response = (Envelope)input.readObject();
+			if((int)response.getObjContents().get(0) != msgReceived){
+				System.out.println("Wrong message received, aborting");
+				return null;
+			}
+			msgReceived++;
 			if(!crypto.verify(integrityKey, response, input)){
 				System.out.println("Message was modified, aborting");
 			}
@@ -95,14 +101,20 @@ public class GroupClient extends Client implements GroupClientInterface {
  			message.addObject(usrName); //Add user name string
 			message.addObject(pass); //Add password
 			message.addObject(target); //Add target
-
+			message = crypto.addMessageNumber(message, msgSent);
  			output.reset();
- 			output.writeObject(message);
+			output.writeObject(message);
+			msgSent++;
 			crypto.getHash(integrityKey, message, output);
 
 
 			//Get the response from the server
 			response = (Envelope)input.readObject();
+			if((int)response.getObjContents().get(0) != msgReceived){
+				System.out.println("Wrong message received, aborting");
+				return null;
+			}
+			msgReceived++;
 			if(!crypto.verify(integrityKey, response, input)){
 				System.out.println("Message was modified, aborting");
 			}
@@ -153,10 +165,17 @@ public class GroupClient extends Client implements GroupClientInterface {
 				message.addObject(crypto.encryptAES(groupTokTuple.tok.toString(), aesKey)); //Add the requester's token
 				message.addObject(crypto.encryptAES(groupTokTuple.hashedToken, aesKey));//Add the signed token hash
 				output.reset();
+				message = crypto.addMessageNumber(message, msgSent);
 				output.writeObject(message);
+				msgSent++;
 				crypto.getHash(integrityKey, message, output);
 
 				response = (Envelope)input.readObject();
+				if((int)response.getObjContents().get(0) != msgReceived){
+					System.out.println("Wrong message received, aborting");
+					return false;
+				}
+				msgReceived++;
 				if(!crypto.verify(integrityKey, response, input)){
 					System.out.println("Message was modified, aborting");
 				}
