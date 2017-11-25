@@ -144,7 +144,9 @@ public abstract class Client {
 			try
 			{
 				Envelope message = new Envelope("DISCONNECT");
+				message.addObject(msgSent);
 				output.writeObject(message);
+				msgSent++;
 			}catch(java.net.SocketException s){
 				//do nothing
 			}catch(Exception e){

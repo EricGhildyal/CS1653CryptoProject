@@ -43,16 +43,20 @@ public class GroupClient extends Client implements GroupClientInterface {
 
 			//Get the response from the server
 			response = (Envelope)input.readObject();
-			if((int)response.getObjContents().get(0) != msgReceived){
-				System.out.println("Wrong message received, aborting");
-				return null;
-			}
-			msgReceived++;
+			//msgReceived++;
 			if(!crypto.verify(integrityKey, response, input)){
 				System.out.println("Message was modified, aborting");
 			}
+			else if((int)response.getObjContents().get(0) != msgReceived){
+				System.out.println((int)response.getObjContents().get(0));
+				System.out.println("RECEIVED: " + msgReceived);
+				System.out.println("Wrong message received, aborting");
+				return null;
+			}
+			
 			else{
-
+				msgReceived++;
+				response = crypto.removeMessageNumber(response);
 				System.out.println("gcli: " + response.getMessage());
 				//Successful response
 				if(response.getMessage().equals("OK"))
@@ -110,16 +114,19 @@ public class GroupClient extends Client implements GroupClientInterface {
 
 			//Get the response from the server
 			response = (Envelope)input.readObject();
-			if((int)response.getObjContents().get(0) != msgReceived){
-				System.out.println("Wrong message received, aborting");
-				return null;
-			}
-			msgReceived++;
+			//msgReceived++;
+			
 			if(!crypto.verify(integrityKey, response, input)){
 				System.out.println("Message was modified, aborting");
 			}
+			else if((int)response.getObjContents().get(0) != msgReceived){
+				System.out.println("Wrong message received, aborting");
+				return null;
+			}
 			else{
-
+				msgReceived++;
+				response = crypto.removeMessageNumber(response);
+				//response = crypto.removeMessageNumber(response);
 				System.out.println("gcli: " + response.getMessage());
 				//Successful response
 				if(response.getMessage().equals("OK"))
@@ -171,16 +178,17 @@ public class GroupClient extends Client implements GroupClientInterface {
 				crypto.getHash(integrityKey, message, output);
 
 				response = (Envelope)input.readObject();
-				if((int)response.getObjContents().get(0) != msgReceived){
-					System.out.println("Wrong message received, aborting");
-					return false;
-				}
-				msgReceived++;
+				
+				
 				if(!crypto.verify(integrityKey, response, input)){
 					System.out.println("Message was modified, aborting");
 				}
+				else if((int)response.getObjContents().get(0) != msgReceived){
+					System.out.println("Wrong message received, aborting");
+					return false;
+				}
 				else{
-
+					msgReceived++;
 					//If server indicates success, return true
 					if(response.getMessage().equals("OK"))
 					{
@@ -210,15 +218,22 @@ public class GroupClient extends Client implements GroupClientInterface {
 				message.addObject(crypto.encryptAES(username, aesKey)); //Add user name
 				message.addObject(crypto.encryptAES(groupTokTuple.tok.toString(), aesKey));  //Add requester's token
 				message.addObject(crypto.encryptAES(groupTokTuple.hashedToken, aesKey));//Add the signed token hash
+				message = crypto.addMessageNumber(message, msgSent);
 				output.reset();
 				output.writeObject(message);
+				msgSent++;
 				crypto.getHash(integrityKey, message, output);
 				response = (Envelope)input.readObject();
+				
 				if(!crypto.verify(integrityKey, response, input)){
 					System.out.println("Message was modified, aborting");
 				}
+				else if((int)response.getObjContents().get(0) != msgReceived){
+					System.out.println("Wrong message received, aborting");
+					return false;
+				}
 				else{
-
+					msgReceived++;
 					//If server indicates success, return true
 					if(response.getMessage().equals("OK"))
 					{
@@ -247,14 +262,22 @@ public class GroupClient extends Client implements GroupClientInterface {
 				message.addObject(crypto.encryptAES(groupname, aesKey)); //Add the group name string
 				message.addObject(crypto.encryptAES(groupTokTuple.tok.toString(), aesKey)); //Add the requester's token
 				message.addObject(crypto.encryptAES(groupTokTuple.hashedToken, aesKey));//Add the signed token hash
+				message = crypto.addMessageNumber(message,msgSent);
 				output.reset();
 				output.writeObject(message);
+				msgSent++;
 				crypto.getHash(integrityKey, message, output);
 				response = (Envelope)input.readObject();
+				//msgReceived++;
 				if(!crypto.verify(integrityKey, response, input)){
 					System.out.println("Message was modified, aborting");
 				}
+				else if((int)response.getObjContents().get(0) != msgReceived){
+					System.out.println("Wrong message received, aborting");
+					return false;
+				}
 				else{
+					msgReceived++;
 					//If server indicates success, return true
 					if(response.getMessage().equals("OK")){
 						output.reset();
@@ -281,15 +304,24 @@ public class GroupClient extends Client implements GroupClientInterface {
 				message.addObject(crypto.encryptAES(groupname, aesKey)); //Add the group name string
 				message.addObject(crypto.encryptAES(groupTokTuple.tok.toString(), aesKey)); //Add the requester's token
 				message.addObject(crypto.encryptAES(groupTokTuple.hashedToken, aesKey));//Add the signed token hash
+				message = crypto.addMessageNumber(message, msgSent);
 				output.reset();
 				output.writeObject(message);
+				msgSent++;
 				crypto.getHash(integrityKey, message, output);
 
 				response = (Envelope)input.readObject();
+				//msgReceived++;
 				if(!crypto.verify(integrityKey, response, input)){
 					System.out.println("Message was modified, aborting");
 				}
+				else if((int)response.getObjContents().get(0) != msgReceived){
+					System.out.println("Wrong message received, aborting");
+					return false;
+				}
 				else{
+					msgReceived++;
+
 					//If server indicates success, return true
 					if(response.getMessage().equals("OK"))
 					{
@@ -321,15 +353,24 @@ public class GroupClient extends Client implements GroupClientInterface {
 			 message.addObject(grp); //Add group name string
 			 message.addObject(tok); //Add requester's token
 			 message.addObject(crypto.encryptAES(groupTokTuple.hashedToken, aesKey));//Add the signed token hash
+			 message = crypto.addMessageNumber(message, msgSent);
 			 output.reset();
 			 output.writeObject(message);
+			 msgSent++;
 			 crypto.getHash(integrityKey, message, output);
 
 			 response = (Envelope)input.readObject();
+			 //msgReceived++;
 			 if(!crypto.verify(integrityKey, response, input)){
 				System.out.println("Message was modified, aborting");
 			 }
+			 else if((int)response.getObjContents().get(0) != msgReceived){
+				System.out.println("Wrong message received, aborting");
+				return null;
+			}
 			 else{
+				msgReceived++;
+				response = crypto.removeMessageNumber(response);
 				//If server indicates success, return the member list
 				if(response.getMessage().equals("OK"))
 				{
@@ -361,15 +402,23 @@ public class GroupClient extends Client implements GroupClientInterface {
 				message.addObject(crypto.encryptAES(groupname, aesKey)); //Add the group name string
 				message.addObject(crypto.encryptAES(groupTokTuple.tok.toString(), aesKey)); //Add the requester's token
 				message.addObject(crypto.encryptAES(groupTokTuple.hashedToken, aesKey));//Add the signed token hash
+				message = crypto.addMessageNumber(message,msgSent);
 				output.reset();
 				output.writeObject(message);
+				msgSent++;
 				crypto.getHash(integrityKey, message, output);
 
 				response = (Envelope)input.readObject();
+				//msgReceived++;
 				if(!crypto.verify(integrityKey, response, input)){
 					System.out.println("Message was modified, aborting");
 				}
+				else if((int)response.getObjContents().get(0) != msgReceived){
+					System.out.println("Wrong message received, aborting");
+					return false;
+				}
 				else{
+					msgReceived++;
 					//If server indicates success, return true
 					if(response.getMessage().equals("OK"))
 					{
@@ -399,15 +448,23 @@ public class GroupClient extends Client implements GroupClientInterface {
 				message.addObject(crypto.encryptAES(groupname, aesKey)); //Add the group name string
 				message.addObject(crypto.encryptAES(groupTokTuple.tok.toString(), aesKey)); //Add the requester's token
 				message.addObject(crypto.encryptAES(groupTokTuple.hashedToken, aesKey));//Add the signed token hash
+				message = crypto.addMessageNumber(message, msgSent);
 				output.reset();
 				output.writeObject(message);
+				msgSent++;
 				crypto.getHash(integrityKey, message, output);
 
 				response = (Envelope)input.readObject();
+				//msgReceived++;
 				if(!crypto.verify(integrityKey, response, input)){
 					System.out.println("Message was modified, aborting");
 				}
+				else if((int)response.getObjContents().get(0) != msgReceived){
+					System.out.println("Wrong message received, aborting");
+					return false;
+				}
 				else{
+					msgReceived++;
 					//If server indicates success, return true
 					if(response.getMessage().equals("OK"))
 					{

@@ -321,41 +321,43 @@ public class CryptoHelper{
         return ret;
    }
 
+  
    public void getHash(BigInteger key, Envelope message, ObjectOutputStream output){
-       try{
+    try{
 
-            byte [] a = HMAC(key.toByteArray(), message);
-            message = new Envelope("INTEGRITY");
-            message.addObject(a);
-            output.reset();
-            output.writeObject(message);
-       }catch(Exception e){
+         byte [] a = HMAC(key.toByteArray(), message);
+         message = new Envelope("INTEGRITY");
+         message.addObject(a);
+         
+         output.reset();
+         output.writeObject(message);
+    }catch(Exception e){
 
-       }
-   }
+    }
+}
 
-   public boolean verify(BigInteger key, Envelope message, ObjectInputStream input){
-      System.out.println("Started verfication!");
-       try{
-            byte [] integrity = HMAC(key.toByteArray(), message);
+public boolean verify(BigInteger key, Envelope message, ObjectInputStream input){
+   System.out.println("Started verfication!");
+    try{
+         byte [] integrity = HMAC(key.toByteArray(), message);
 
-            Envelope integ = (Envelope)input.readObject();
-            ArrayList<Object> check = integ.getObjContents();
-            System.out.println("MESS HEADER: " + message.getMessage());
-            System.out.println("INTEG HEADER: " + integ.getMessage());
-            if(!integ.getMessage().equals("INTEGRITY")){
-              System.out.println("Message provided for integrity did not have the header: 'INTEGRITY'");
-              return false;
-            }
-            byte [] test = (byte [])check.get(0);
-            System.out.printf("%s\nTEST:%s\n\nINTEG:%s\n\n",Arrays.equals(test, integrity), Base64.encodeBase64String(test), Base64.encodeBase64String(integrity));
-            return Arrays.equals(test, integrity);
-       }
-       catch(Exception e){
-            e.printStackTrace();
-            return false;
-       }
-   }
+         Envelope integ = (Envelope)input.readObject();
+         ArrayList<Object> check = integ.getObjContents();
+        // System.out.println("MESS HEADER: " + message.getMessage());
+         //System.out.println("INTEG HEADER: " + integ.getMessage());
+         if(!integ.getMessage().equals("INTEGRITY")){
+           System.out.println("Message provided for integrity did not have the header: 'INTEGRITY'");
+           return false;
+         }
+         byte [] test = (byte [])check.get(0);
+        // System.out.printf("%s\nTEST:%s\n\nINTEG:%s\n\n",Arrays.equals(test, integrity), Base64.encodeBase64String(test), Base64.encodeBase64String(integrity));
+         return Arrays.equals(test, integrity);
+    }
+    catch(Exception e){
+         e.printStackTrace();
+         return false;
+    }
+}
 
    public boolean checkTarget(String target, Key rsaPub){
      return target.equals(Base64.encodeBase64String(rsaPub.getEncoded()));

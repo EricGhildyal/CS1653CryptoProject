@@ -123,14 +123,24 @@ public class FileThread extends Thread
 				catch(IndexOutOfBoundsException e){
 					message = (Envelope)input.readObject();
 				}
-				System.out.println(message.getMessage());
+				//System.out.println(message.getMessage());
 				if((int)message.getObjContents().get(0) != msgReceived){
+					for(int i = 0; i < msgReceived; i ++){
+						try{
+							if(msgs.get(i) == null)
+								msgs.add(i, null);
+						}
+						catch(Exception e){
+							msgs.add(i, null);
+						}
+					}
 					msgs.add((int)message.getObjContents().get(0), message);
 					while((int)message.getObjContents().get(0) != msgReceived){
 						message = (Envelope)input.readObject();
 					}
 				}
 				else{
+					Envelope noNum = message;
 					message = crypto.removeMessageNumber(message);
 					msgReceived++;
 					
@@ -155,7 +165,7 @@ public class FileThread extends Thread
 						if(!crypto.checkTarget(requestTokTup.tok.getTarget(), my_fs.keyRing.getKey("rsa_pub"))){
 							response = new Envelope("FAIL-INCORRECTTARGET");
 						}
-						else if(!crypto.verify(integrityKey, message, input)){
+						else if(!crypto.verify(integrityKey, noNum, input)){
 							response = new Envelope("FAIL-MESSAGEMODIFIED");
 						}
 						else{
@@ -163,8 +173,10 @@ public class FileThread extends Thread
 							byte [] ls = crypto.encryptAES(list.toString(), aesKey);
 							response.addObject(ls);
 						}
+						response = crypto.addMessageNumber(response, msgSent);
 						output.reset();
 						output.writeObject(response);
+						msgSent++;
 						crypto.getHash(integrityKey, response, output);
 					}
 
@@ -183,8 +195,9 @@ public class FileThread extends Thread
 						else{
 							response = new Envelope("FAIL-PUBKEY_FETCH_ERROR");
 						}
-						output.reset();
 						response = crypto.addMessageNumber(response, msgSent);
+						output.reset();
+						
 						output.writeObject(response);
 						msgSent++;
 						crypto.getHash(integrityKey, response, output);
@@ -199,7 +212,7 @@ public class FileThread extends Thread
 						if(message.getObjContents().size() < 4){
 							response = new Envelope("FAIL-BADCONTENTS");
 						}
-						else if(!crypto.verify(integrityKey, message, input)){
+						else if(!crypto.verify(integrityKey, noNum, input)){
 							response = new Envelope("FAIL-MESSAGEMODIFIED");
 						}
 						else{
@@ -219,8 +232,10 @@ public class FileThread extends Thread
 								response = uploadFile(path, grp, requestTokTup.tok, message, aesKey);
 							}
 						}
+						response = crypto.addMessageNumber(response, msgSent);
 						output.reset();
 						output.writeObject(response);
+						msgSent++;
 						crypto.getHash(integrityKey, response, output);
 					}
 
@@ -239,7 +254,7 @@ public class FileThread extends Thread
 						else if (sf == null) {
 							response = new Envelope("ERROR_FILEMISSING");
 						}
-						else if(!crypto.verify(integrityKey, message, input)){
+						else if(!crypto.verify(integrityKey, noNum, input)){
 							response = new Envelope("FAIL");
 						}
 						else if (!requestTokTup.tok.getGroups().contains(sf.getGroup())){
@@ -258,15 +273,17 @@ public class FileThread extends Thread
 
 						if(!requestTokTup.tok.getTarget().equals(Base64.encodeBase64String(my_fs.keyRing.getKey("rsa_pub").getEncoded()))){
 							response = new Envelope("FAIL-INCORRECTTARGET");
-						}else if(!crypto.verify(integrityKey, message, input)){
+						}else if(!crypto.verify(integrityKey, noNum, input)){
 							response = new Envelope("FAIL-INTEGRITYERROR");
 						}
 						else{
 							//TODO check token
 							message = deleteFile(remotePath, requestTokTup.tok);
 						}
+						message = crypto.addMessageNumber(message, msgSent);
 						output.reset();
 						output.writeObject(message);
+						msgSent++;
 						crypto.getHash(integrityKey, message, output);
 					}
 
@@ -336,8 +353,10 @@ public class FileThread extends Thread
 				System.out.printf("Successfully created file %s\n", remotePath.replace('/', '_'));
 
 				response = new Envelope("READY"); //Success
+				response = crypto.addMessageNumber(response, msgSent);
 				output.reset();
 				output.writeObject(response);
+				msgSent++;
 				crypto.getHash(integrityKey, response, output);
 
 				message = (Envelope)input.readObject();
@@ -347,12 +366,22 @@ public class FileThread extends Thread
 					//output.reset();
 
 				}
+				else if((int)message.getObjContents().get(0) != msgReceived){
+					System.out.println("FAIL-Messages out of order");
+					response = new Envelope("FAIL-OUT OF ORDER");
+					//break;
+				}
+				
 				else{
+					msgReceived++;
+					message = crypto.removeMessageNumber(message);
 					while (message.getMessage().compareTo("CHUNK")==0) {
 						fos.write((byte[])message.getObjContents().get(0), 0, (Integer)message.getObjContents().get(1));
 						response = new Envelope("READY"); //Success
+						response = crypto.addMessageNumber(response, msgSent);
 						output.reset();
 						output.writeObject(response);
+						msgSent++;
 						crypto.getHash(integrityKey, response, output);
 
 						message = (Envelope)input.readObject();
@@ -362,8 +391,14 @@ public class FileThread extends Thread
 							//output.reset();
 							break;
 						}
+						else if((int)message.getObjContents().get(0) != msgReceived){
+							response = new Envelope("Messages out of order");
+							break;
+						}
+						message = crypto.removeMessageNumber(message);
+						msgReceived++;
 					}
-
+					
 					if(message.getMessage().compareTo("EOF")==0) {
 						System.out.printf("Transfer successful file %s\n", remotePath);
 						FileServer.fileList.addFile(yourToken.getSubject(), group, remotePath);
@@ -379,7 +414,7 @@ public class FileThread extends Thread
 		}catch(Exception ex){
 			System.out.println("Error uploading file: " + message);
 		}
-		System.out.println("testing");
+		//System.out.println("testing");
 		return response;
 	}
 
@@ -450,22 +485,32 @@ public class FileThread extends Thread
 					message.addObject(buffer);
 					message.addObject(byteN);
 					//message.addObject(new Integer(n));
+					message = crypto.addMessageNumber(message, msgSent);
 					output.reset();
 					output.writeObject(message);
+					msgSent++;
 					crypto.getHash(integrityKey, message, output);
 					message = (Envelope)input.readObject();
 					if(!crypto.verify(integrityKey, message, input)){
 						response = new Envelope("FAIL-MESSAGEMODIFIED");
 						break;
 					}
+					else if((int)message.getObjContents().get(0) != msgReceived){
+						System.out.println("FAIL-Messages out of order");
+						break;
+					}
+					msgReceived++;
+					message = crypto.removeMessageNumber(message);
 				}
 				while (fis.available()>0);
 
 				//If server indicates success, return the member list
 				if(message.getMessage().compareTo("DOWNLOADF")==0){
 					message = new Envelope("EOF");
+					message = crypto.addMessageNumber(message, msgSent);
 					output.reset();
 					output.writeObject(message);
+					msgSent++;
 					crypto.getHash(integrityKey, message, output);
 
 					message = (Envelope)input.readObject();
@@ -473,7 +518,13 @@ public class FileThread extends Thread
 						response = new Envelope("FAIL-MESSAGEMODIFIED");
 						System.out.println("Upload Failed - Message Modified");
 					}
+					else if((int)message.getObjContents().get(0) != msgReceived){
+						response = new Envelope("FAIL-Messages out of order");
+						System.out.println("Upload Failed - messages out of order");
+					}
 					else{
+						msgReceived++;
+						message = crypto.removeMessageNumber(message);
 						if(message.getMessage().compareTo("OK")==0) {
 							System.out.printf("File data upload successful\n");
 						}else{
