@@ -18,8 +18,6 @@ public class FileServer extends Server {
 	public static KeyRing keyRing;
 	public CryptoHelper crypto;
 
-
-
 	public FileServer() {
 		super(SERVER_PORT, "FilePile");
 		crypto = new CryptoHelper();
@@ -94,17 +92,13 @@ public class FileServer extends Server {
 		{
 			final ServerSocket serverSock = new ServerSocket(port);
 			System.out.printf("%s up and running\n", this.getClass().getName());
-
 			Socket sock = null;
 			Thread thread = null;
-
-			while(running)
-			{
+			while(running){
 				sock = serverSock.accept();
 				thread = new FileThread(sock, this);
 				thread.start();
 			}
-
 			System.out.printf("%s shut down\n", this.getClass().getName());
 			serverSock.close();
 		}
@@ -123,7 +117,6 @@ class ShutDownListenerFS implements Runnable
 	{
 		System.out.println("Shutting down server");
 		ObjectOutputStream outStream;
-
 		try
 		{
 			outStream = new ObjectOutputStream(new FileOutputStream("FileList.bin"));

@@ -5,7 +5,6 @@ import java.security.cert.*;
 import java.security.cert.Certificate;
 import org.bouncycastle.jce.*;
 import org.bouncycastle.x509.*;
-
 import java.math.*;
 import org.apache.commons.codec.binary.Base64;
 
@@ -59,7 +58,7 @@ public class KeyRing implements Serializable{
     }
 
     public String getAlias(){
-        return ringAlias;
+        return this.ringAlias;
     }
 
     // private Key readPemFile(File keyFile){

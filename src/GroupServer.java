@@ -14,12 +14,10 @@ public class GroupServer extends Server {
 
 	public static final int SERVER_PORT = 8765;
 	public UserList userList;
-  public ArrayList<Group> groupList = new ArrayList<>();
+  	public ArrayList<Group> groupList = new ArrayList<Group>();
 	public String fname = "";
 	public static KeyRing keyRing;
 	public CryptoHelper crypto;
-
-
 
 	public GroupServer(String dbFileName) {
 		super(SERVER_PORT, "ALPHA");
@@ -52,7 +50,6 @@ public class GroupServer extends Server {
 
 	public void start() {
 		// Overwrote server.start() because if no user file exists, initial admin account needs to be created
-
 		String userFile = "UserList.bin";
 		String groupFile = "GroupList.bin";
 		Scanner console = new Scanner(System.in);
@@ -118,12 +115,7 @@ public class GroupServer extends Server {
 			admins.add(username);
 			groupList.add(new Group(admins, "ADMIN", username));
 		}
-		catch(IOException e)
-		{
-			System.out.println("Error reading from UserList file");
-			System.exit(-1);
-		}
-		catch(ClassNotFoundException e)
+		catch(Exception e)
 		{
 			System.out.println("Error reading from UserList file");
 			System.exit(-1);
@@ -139,12 +131,7 @@ public class GroupServer extends Server {
 			System.out.println("groupList File Does Not Exist. Creating groupList...");
 			System.out.println("No groups currently exist.");
 		}
-		catch(IOException e)
-		{
-			System.out.println("Error reading from GroupList file");
-			System.exit(-1);
-		}
-		catch(ClassNotFoundException e)
+		catch(Exception e)
 		{
 			System.out.println("Error reading from GroupList file");
 			System.exit(-1);
@@ -246,23 +233,5 @@ class AutoSave extends Thread
 				System.out.println("Autosave Interrupted");
 			}
 		}while(true);
-	}
-}
-
-
-class Group implements Serializable{
-	public ArrayList<String> memberList;
-	public String name;
-	public String owner;
-	static final long serialVersionUID = 7823049212321412923L;
-
-	public Group(ArrayList<String> memberList, String name, String owner) {
-		this.memberList = memberList;
-		this.name = name;
-		this.owner = owner;
-	}
-
-	public String toString(){
-		return name;
 	}
 }

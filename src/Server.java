@@ -9,7 +9,6 @@ public abstract class Server {
 		name = _serverName; 
 	}
 	
-		
 	public int getPort() {
 		return port;
 	}

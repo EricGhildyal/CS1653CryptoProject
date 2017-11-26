@@ -1,9 +1,8 @@
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Scanner;
-import java.lang.Integer;
+import java.util.*;
 import javax.crypto.*;
 import javax.crypto.spec.SecretKeySpec;
+import org.apache.commons.codec.binary.Base64;
+import java.security.*;
 
 
 public class RunClient {
@@ -50,7 +49,7 @@ public class RunClient {
 			return;
 		}
 
-		fileServPubRSA = fcli.getPubKey();
+		fileServPubRSA = Base64.encodeBase64String(fcli.getPubKey());
 		if(fileServPubRSA == null){
 			System.err.println("Failed to get fileservers public key!");
 		}
@@ -179,7 +178,7 @@ public class RunClient {
 
 				case 9: //Upload File
 					if(gcli.groupTokTuple != null){
-						uploadFile(input, gcli.fileTokTuple, fcli);
+						uploadFile(input, gcli.fileTokTuple, fcli, gcli);
 						System.out.println("");
 					}
 					else
@@ -188,7 +187,7 @@ public class RunClient {
 
 				case 10: //Download File
 					if(gcli.groupTokTuple != null){
-						downloadFile(input, gcli.fileTokTuple, fcli);
+						downloadFile(input, gcli.fileTokTuple, fcli, gcli);
 						System.out.println("");
 					}
 					else
@@ -408,7 +407,7 @@ public class RunClient {
 		return true;
 	}
 
-	public static boolean uploadFile(Scanner input, TokenTuple groupTokTuple, FileClient fcli) {
+	public static boolean uploadFile(Scanner input, TokenTuple groupTokTuple, FileClient fcli, GroupClient gcli) {
 		System.out.println("Please enter the source file name: ");
 		String sourceFile = input.nextLine();
 		while(sourceFile.isEmpty()) {
@@ -434,10 +433,12 @@ public class RunClient {
 			if(gName.equals("break"))
 				return false;
 		}
-		return fcli.upload(sourceFile, destFile, gName, groupTokTuple);
+		int keyVer = gcli.getGroupKeyVer(gName);
+		Key groupKey = gcli.getGroupKey(gName, keyVer);
+		return fcli.upload(sourceFile, destFile, gName, groupTokTuple, groupKey, keyVer);
 	}
 
-	public static boolean downloadFile(Scanner input, TokenTuple groupTokTuple, FileClient fcli) {
+	public static boolean downloadFile(Scanner input, TokenTuple groupTokTuple, FileClient fcli, GroupClient gcli) {
 		System.out.println("Please enter the source file name: ");
 		String sourceFile = input.nextLine();
 		while(sourceFile.isEmpty()) {
@@ -455,7 +456,13 @@ public class RunClient {
 				return false;
 
 		}
-		return fcli.download(sourceFile, destFile, groupTokTuple);
+		String groupName = fcli.getGroup(sourceFile);
+		int version = fcli.getKeyVer(sourceFile);
+		Key groupKey = gcli.getGroupKey(groupName, version);
+		System.out.println(groupName);
+		System.out.println(version);
+		System.out.println(groupKey);
+		return fcli.download(sourceFile, destFile, groupTokTuple, groupKey);
 	}
 
 	public static boolean deleteFile(Scanner input, TokenTuple groupTokTuple, FileClient fcli) {

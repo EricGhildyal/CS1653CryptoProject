@@ -66,7 +66,7 @@ public class CryptoHelper{
             rsaCipher.init(Cipher.DECRYPT_MODE, key);
             out = rsaCipher.doFinal(ciphertext);
         }catch(Exception ex){
-            System.out.println("dec rsa:" + ex);
+            ex.printStackTrace();
         }
         return out;
     }
@@ -92,6 +92,17 @@ public class CryptoHelper{
     }
 
     // ============================== AES methods ==============================
+
+    public Key getNewAESKey(){
+        KeyGenerator gen = null;
+        try{
+          gen = KeyGenerator.getInstance("AES", "BC");
+          gen.init(256);
+        }catch(Exception ex){
+          System.out.println(ex);
+        }
+        return gen.generateKey();
+    }
 
     public byte[] encryptAES(String input, Key key){
         byte[] out = null;
@@ -150,7 +161,7 @@ public class CryptoHelper{
 			if((i % 2) != 0)
 				trial.add(trial.size(), grpss[i]);
 		}
-    String target = spl[7];
+        String target = spl[7];
 		UserToken yourToken = (UserToken)new Token(spl[1], spl[3], trial, spl[7]);
 		return yourToken;
     }
@@ -183,18 +194,29 @@ public class CryptoHelper{
         return out;
     }
 
+    public byte[] sha256Bytes(byte [] s){
+        SHA256Digest sha = new SHA256Digest();
+        sha.update(s, 0, s.length);
+        byte[] out = new byte[64];
+        sha.doFinal(out, 0);
+        return out;
+    }
+
     // ============================== KeyRing methods ==============================
 
     public boolean saveRing(KeyRing kr){
         ObjectOutputStream outStream;
         try{
             File f = new File(kr.getAlias() + "_keys" + File.separator + "keys.bin");
-            f.createNewFile();
+            if(!f.exists()){
+                f.createNewFile(); 
+            }
             outStream = new ObjectOutputStream(new FileOutputStream(f));
             outStream.writeObject(kr);
             outStream.close();
         }catch(Exception e){
             System.err.println("Error saving KeyRing: " + e);
+            // e.printStackTrace();
         }
         return true;
     }
@@ -206,20 +228,12 @@ public class CryptoHelper{
         KeyRing newKr = null;
         ObjectInputStream inStream;
         try{
-            inStream = new ObjectInputStream(new FileInputStream(kr.getAlias() + "_keys" + "/keys.bin"));
+            inStream = new ObjectInputStream(new FileInputStream(kr.getAlias() + "_keys" + File.separator + "keys.bin"));
             newKr = (KeyRing) inStream.readObject();
         }catch(Exception e){
             System.err.println("Error loading KeyRing: " + e);
         }
         return newKr;
-    }
-
-    public byte[] sha256Bytes(byte [] s){
-        SHA256Digest sha = new SHA256Digest();
-        sha.update(s, 0, s.length);
-        byte[] out = new byte[64];
-        sha.doFinal(out, 0);
-        return out;
     }
 
     private byte[] serialize(Object obj) throws IOException {
@@ -228,12 +242,12 @@ public class CryptoHelper{
                 o.writeObject(obj);
             }
             catch(Exception e){
-
+                //nothing
             }
             return b.toByteArray();
         }
         catch(Exception e){
-
+            //nothing
         }
         return null;
     }
@@ -245,7 +259,7 @@ public class CryptoHelper{
         try{
             mes = serialize((Object) message);
         }catch(Exception e){
-
+            //nothing
         }
 
         //System.out.println(key.length);
@@ -276,7 +290,7 @@ public class CryptoHelper{
             return out.toByteArray();
         }
         catch(Exception e){
-
+            //nothing
         }
         return null;
     }
@@ -307,32 +321,30 @@ public class CryptoHelper{
 
    public void getHash(BigInteger key, Envelope message, ObjectOutputStream output){
        try{
-
             byte [] a = HMAC(key.toByteArray(), message);
             message = new Envelope("INTEGRITY");
             message.addObject(a);
             output.reset();
             output.writeObject(message);
        }catch(Exception e){
-
+        //nothing
        }
    }
 
    public boolean verify(BigInteger key, Envelope message, ObjectInputStream input){
-      System.out.println("Started verfication!");
+    //   System.out.println("Started verfication!");
        try{
             byte [] integrity = HMAC(key.toByteArray(), message);
-
             Envelope integ = (Envelope)input.readObject();
             ArrayList<Object> check = integ.getObjContents();
-            System.out.println("MESS HEADER: " + message.getMessage());
-            System.out.println("INTEG HEADER: " + integ.getMessage());
+            // System.out.println("MESS HEADER: " + message.getMessage());
+            // System.out.println("INTEG HEADER: " + integ.getMessage());
             if(!integ.getMessage().equals("INTEGRITY")){
-              System.out.println("Message provided for integrity did not have the header: 'INTEGRITY'");
+            //   System.out.println("Message provided for integrity did not have the header: 'INTEGRITY'");
               return false;
             }
             byte [] test = (byte [])check.get(0);
-            System.out.printf("%s\nTEST:%s\n\nINTEG:%s\n\n",Arrays.equals(test, integrity), Base64.encodeBase64String(test), Base64.encodeBase64String(integrity));
+            // System.out.printf("%s\nTEST:%s\n\nINTEG:%s\n\n",Arrays.equals(test, integrity), Base64.encodeBase64String(test), Base64.encodeBase64String(integrity));
             return Arrays.equals(test, integrity);
        }
        catch(Exception e){
