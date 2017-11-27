@@ -4,7 +4,7 @@
 For phase three of this project, we were tasked with creating measures to protect from four threats. These threats are Message Reorder, Replay, or Modification; File Leakage; and Token Theft. To overcome Message reorder, replay, or modification, we decided to use a monotonically increasing timestamp on all messages sent, Diffie Hellman (from last phase) to help protect from replay attacks, and encrypt each message using the session key (specifics in T5). In terms of File Leakage, we decided to generate a group key for each group (updating the key as group members change) (specifics in T6). Lastly, to protect against Token Theft, we decided to use the included RSA fingerprint in the token (Specifics in T7).
 
 
-## T5 Message Reorder, Replay, or Modification 
+## T5 Message Reorder, Replay, or Modification
 
 
 **Description of threat:**  
@@ -49,7 +49,7 @@ The ability for a file server to steal tokens means that attacker could pretend 
 As in T4, the user establishes a secure connection with the Group Server using Diffie Hellman and AES in CBC mode.
 The user will submit a request for a token to the group server, which includes a username and password.
 As in T2, the server will return a signed token, but instead of this token being used for authentication with file servers, it will only be used for further authentication with the group server.
-Whenever the user wants to access a file server it must first get a signed token from the group server that includes a target server. If the user has this cached it may use it, but otherwise they must contact the group server, authenticating with their token, to get a new token signed.
+Whenever the user wants to access a file server it must first get a signed token from the group server that includes the public RSA key of a target server. If the user has this cached it may use it, but otherwise they must contact the group server, authenticating with their token and providing the fileserver's public key, to get a new token signed.
 The user will then send this new token to file server, which makes the same signature checks for token modification and forgery as in T2, but now also check for the inclusion of the file server's public rsa fingerprint in the signature.  
 **Arguments:**  
 This mechanism protects against file servers from stealing your key and using it on other servers because of the included RSA fingerprint in the token that will cause any server other than the one listed in the token to reject the token.
@@ -59,7 +59,7 @@ This also still protects against token forgery (T3) because the group server sti
 ![T7](https://github.com/EricGhildyal/CS1653CryptoProject/blob/master/reports/images/t7.jpg)
 
 
-## Conclusion 
+## Conclusion
 From the mechanisms we designed none of them protect against multiple threats. For each threat, our group took the approach of each of us coming up with a proposed solution then discussing the pros and cons of each until deciding on one. This allowed us to have multiple options and potentially mix our solutions if one of us considered different risks than others. The discussion phase was probably the longest part of the design process as we didn’t choose one until we all agreed with it. After agreeing on one and writing up we then all checked it to make sure it was written the way we discussed it.
 
 ## Ongoing Concerns

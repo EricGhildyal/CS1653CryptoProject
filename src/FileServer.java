@@ -10,6 +10,8 @@ import java.io.ObjectOutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.security.*;
+import org.apache.commons.codec.binary.Base64;
+
 
 public class FileServer extends Server {
 
@@ -31,6 +33,8 @@ public class FileServer extends Server {
 			KeyPair kp = crypto.getNewKeypair();
 			keyRing.addKey("rsa_priv", kp.getPrivate());
 			keyRing.addKey("rsa_pub", kp.getPublic());
+			System.out.println("FS_PUBKEY: " + Base64.encodeBase64String(kp.getPublic().getEncoded()));
+
 		}
 	}
 
@@ -45,6 +49,7 @@ public class FileServer extends Server {
 			KeyPair kp = crypto.getNewKeypair();
 			keyRing.addKey("rsa_priv", kp.getPrivate());
 			keyRing.addKey("rsa_pub", kp.getPublic());
+			System.out.println("FS_PUBKEY: " + Base64.encodeBase64String(kp.getPublic().getEncoded()));
 		}
 	}
 

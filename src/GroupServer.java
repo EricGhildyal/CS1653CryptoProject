@@ -8,6 +8,7 @@ import java.net.Socket;
 import java.io.*;
 import java.security.*;
 import java.util.*;
+import org.apache.commons.codec.binary.Base64;
 
 
 public class GroupServer extends Server {
@@ -33,6 +34,7 @@ public class GroupServer extends Server {
 			KeyPair kp = crypto.getNewKeypair();
 			keyRing.addKey("rsa_priv", kp.getPrivate());
 			keyRing.addKey("rsa_pub", kp.getPublic());
+			System.out.println("GS_PUBKEY: " + Base64.encodeBase64String(kp.getPublic().getEncoded()));
 		}
 	}
 
@@ -47,6 +49,8 @@ public class GroupServer extends Server {
 			KeyPair kp = crypto.getNewKeypair();
 			keyRing.addKey("rsa_priv", kp.getPrivate());
 			keyRing.addKey("rsa_pub", kp.getPublic());
+			System.out.println("GS_PUBKEY: " + Base64.encodeBase64String(kp.getPublic().getEncoded()));
+			
 		}
 	}
 
