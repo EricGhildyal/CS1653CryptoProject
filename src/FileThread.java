@@ -137,10 +137,9 @@ public class FileThread extends Thread
 					String groupName = my_fs.fileList.findGroup(name);
 					if(groupName != null){
 						response = new Envelope("OK-GROUP");
-						System.out.println("OK grp: " + groupName);
 						response.addObject(groupName);
 					}else{
-						System.out.println("GETGROUP FAILED...........");
+						// System.out.println("GETGROUP FAILED...........");
 						response = new Envelope("FAIL");
 					}
 					output.reset();
@@ -153,10 +152,9 @@ public class FileThread extends Thread
 					int version = my_fs.fileList.findKeyVersion(name);
 					if(version > -1){
 						response = new Envelope("OK-FILE");
-						System.out.println("OK ver: " + version);
 						response.addObject(new Integer(version));
 					}else{
-						System.out.println("GETVERSION FAILED...........");
+						// System.out.println("GETVERSION FAILED...........");
 						response = new Envelope("FAIL");
 					}
 					output.reset();
@@ -270,6 +268,8 @@ public class FileThread extends Thread
 					crypto.getHash(integrityKey, response, output);
 				}
 			} while(proceed);
+		}catch(java.io.EOFException eof){
+			//do nothing
 		}catch(java.net.SocketException s){
 			//do nothing
 		}catch(Exception e){
@@ -418,7 +418,8 @@ public class FileThread extends Thread
 					// String toEnc = new String(buf, "UTF-8");
 					// byte [] buffer = toEnc;
 					byte [] byteN = crypto.encryptAES((new Integer(n)).toString(), aesKey);
-					message.addObject(buf);
+					byte [] bufferEnc = crypto.encryptAES(buf, aesKey);
+					message.addObject(bufferEnc);
 					message.addObject(byteN);
 					output.reset();
 					output.writeObject(message);

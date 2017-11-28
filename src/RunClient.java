@@ -448,8 +448,6 @@ public class RunClient {
 			System.out.println("There was a problem getting the group key");
 			return false;
 		}
-		byte[] encodedKey = Base64.encodeBase64(groupKey.getEncoded());
-		System.out.println("keyup: " + new String(encodedKey));
 		return fcli.upload(sourceFile, destFile, gName, groupTokTuple, groupKey, keyVer);
 	}
 
@@ -498,8 +496,6 @@ public class RunClient {
 				System.out.println("There was a problem getting the group key");
 				return false;
 			}
-			byte[] encodedKey = Base64.encodeBase64(groupKey.getEncoded());
-			System.out.println("key download: " + new String(encodedKey));
 			return fcli.download(sourceFile, destFile, groupTokTuple, groupKey);
 		}catch(Exception e){
 			e.printStackTrace();

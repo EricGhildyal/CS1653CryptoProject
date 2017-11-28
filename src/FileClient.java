@@ -7,6 +7,8 @@ import java.security.*;
 import java.security.spec.*;
 import javax.crypto.spec.SecretKeySpec;
 import org.apache.commons.codec.binary.Base64;
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
 
 
 public class FileClient extends Client implements FileClientInterface {
@@ -143,8 +145,7 @@ public class FileClient extends Client implements FileClientInterface {
 	}
 
 	public boolean download(String sourceFile, String destFile, TokenTuple tokTuple, Key groupKey) {
-		byte[] encodedKey = Base64.encodeBase64(groupKey.getEncoded());
-		System.out.println(new String(encodedKey));
+		
 		if (sourceFile.charAt(0)=='/') {
 			sourceFile = sourceFile.substring(1);
 		}
@@ -171,22 +172,13 @@ public class FileClient extends Client implements FileClientInterface {
 				}
 				while(env.getMessage().compareTo("CHUNK")==0) {
 					try{
-						//TODO this is where the decryption happens
-						// byte[] decodeBase64 = Base64.decodeBase64((byte [])env.getObjContents().get(0));
 						byte[] val = (byte [])env.getObjContents().get(0);
-						byte[] buffer = crypto.decryptAESBytes(val, groupKey);
+						byte[] buffer = crypto.decryptAESBytes(val, aesKey);
 						byte[] byteN = crypto.decryptAESBytes((byte [])env.getObjContents().get(1), aesKey);
 						int n = Integer.parseInt(new String(byteN));
 
-						// System.out.println("encbuf: " + new String(decodeBase64));
-						System.out.println("N: " + n);
-						System.out.println("buf: " + new String(buffer));
-
-						// byte[] decrypted = crypto.decryptAESBytes(buffer, groupKey);
-
 						fos.write(buffer, 0, n);
 
-						// System.out.printf(".");
 						env = new Envelope("DOWNLOADF"); //Success
 						output.reset();
 						output.writeObject(env);
@@ -207,10 +199,19 @@ public class FileClient extends Client implements FileClientInterface {
 					env = new Envelope("OK"); //Success
 					output.reset();
 					output.writeObject(env);
-					crypto.getHash(integrityKey, env, output);
-					if(!crypto.verify(integrityKey, env, input)){
-						System.out.println("Message was modified, aborting");
-						return false;
+
+					//decrypt file
+					try{
+						byte[] fileBytesB64 = IOUtils.toByteArray(new FileInputStream(destFile));
+						byte[] fileBytes = Base64.decodeBase64(fileBytesB64);
+						System.out.println("dec now");
+						byte[] fileDec = crypto.decryptAESBytes(fileBytes, groupKey);
+						System.out.println("Writing dec to file now");
+						FileUtils.writeByteArrayToFile(file, fileDec);
+						System.out.println("Done writing dec to file");
+					}catch(Exception e){
+						System.out.println("There was a problem encrypting your file");
+						e.printStackTrace();
 					}
 				}else{
 					System.out.printf("Error reading file %s (%s)\n", sourceFile, env.getMessage());
@@ -233,8 +234,6 @@ public class FileClient extends Client implements FileClientInterface {
 	}
 
 	public boolean upload(String sourceFile, String destFile, String group, TokenTuple tokTuple, Key groupKey, int keyVer) {
-		byte[] encodedKey = Base64.encodeBase64(groupKey.getEncoded());
-		System.out.println(new String(encodedKey));
 		if(key == null && this.isConnected()){
 			byteFKey = confidentialityKey.toByteArray();
 			key = new SecretKeySpec(byteFKey, "AES");
@@ -246,6 +245,18 @@ public class FileClient extends Client implements FileClientInterface {
 		byte [] destinationFile = crypto.encryptAES(destFile, aesKey);
 		byte [] grpName = crypto.encryptAES(group, aesKey);
 		byte [] tok = crypto.encryptAES(tokTuple.tok.toString(), aesKey);
+
+		File sourceEnc = new File(sourceFile + "_enc");
+		try{
+			byte[] fileBytes = IOUtils.toByteArray(new FileInputStream(sourceFile));
+			byte[] fileCipher = crypto.encryptAES(fileBytes, groupKey);
+			byte[] fileCipherB64 = Base64.encodeBase64(fileCipher);
+			FileUtils.writeByteArrayToFile(sourceEnc, fileCipherB64);
+		}catch(Exception e){
+			System.out.println("There was a problem encrypting your file");
+			e.printStackTrace();
+		}
+
 		try{
 			Envelope message = null, env = null;
 
@@ -260,7 +271,7 @@ public class FileClient extends Client implements FileClientInterface {
 			 crypto.getHash(integrityKey, message, output);
 
 			@SuppressWarnings("resource")
-			FileInputStream fis = new FileInputStream(sourceFile);
+			FileInputStream fis = new FileInputStream(sourceEnc.getAbsolutePath());
 
 			 env = (Envelope)input.readObject();
 			 if(!crypto.verify(integrityKey, env, input)){
@@ -277,32 +288,29 @@ public class FileClient extends Client implements FileClientInterface {
 			 }
 			 do {
 				 byte[] buf = new byte[4096];
-				 	if (env.getMessage().compareTo("READY")!=0) {
-				 		System.out.printf("Server error: %s\n", env.getMessage());
-				 		return false;
-				 	}
-				 	message = new Envelope("CHUNK");
-					int n = fis.read(buf); //can throw an IOException
-					if (n > 0) {
-						// System.out.printf(".");
-					} else if (n < 0) {
-						System.out.println("Read error");
-						return false;
-					}
-					//TODO this is where the encryption happens
-					byte[] ciphertext = crypto.encryptAES(buf, groupKey);
-					// byte[] ciphertextBase64 = Base64.encodeBase64(ciphertext);
+				if (env.getMessage().compareTo("READY")!=0) {
+					System.out.printf("Server error: %s\n", env.getMessage());
+					return false;
+				}
+				message = new Envelope("CHUNK");
+				int n = fis.read(buf); //can throw an IOException
+				if (n > 0) {
+					// System.out.printf(".");
+				} else if (n < 0) {
+					System.out.println("Read error");
+					return false;
+				}
 
-					message.addObject(ciphertext);
-					message.addObject(new Integer(n));
-					output.reset();
-					output.writeObject(message);
-					crypto.getHash(integrityKey, message, output);
-					env = (Envelope)input.readObject();
-					if(!crypto.verify(integrityKey, env, input)){
-						System.out.println("Message was modified, aborting");
-						return false;
-					}
+				message.addObject(buf);
+				message.addObject(new Integer(n));
+				output.reset();
+				output.writeObject(message);
+				crypto.getHash(integrityKey, message, output);
+				env = (Envelope)input.readObject();
+				if(!crypto.verify(integrityKey, env, input)){
+					System.out.println("Message was modified, aborting");
+					return false;
+				}
 			 }while (fis.available()>0);
 
 			 //If server indicates success, return the member list
@@ -330,13 +338,13 @@ public class FileClient extends Client implements FileClientInterface {
 				 System.out.printf("Upload failed: %s\n", env.getMessage());
 				 return false;
 			 }
-		 }catch(Exception e1)
-			{
-				System.err.println("Error: " + e1.getMessage());
-				e1.printStackTrace(System.err);
-				return false;
-				}
-		 return true;
+		 }catch(Exception e1){
+			System.err.println("Error: " + e1.getMessage());
+			e1.printStackTrace(System.err);
+			return false;
+		}
+		sourceEnc.delete();
+		return true;
 	}
 
 	@SuppressWarnings("unchecked")
@@ -383,7 +391,7 @@ public class FileClient extends Client implements FileClientInterface {
 			//sometimes we need to consume an extra message or 2
 			//super SUPER hacky, sorry
 			while(!resp.getMessage().equals("OK-GROUP") && !resp.getMessage().equals("FAIL")){
-				System.out.println("Loop group: " + resp.getMessage());
+				// System.out.println("Loop group: " + resp.getMessage());
 				resp = (Envelope)input.readObject();
 			}
 			if(resp.getMessage().equals("OK-GROUP")){
@@ -410,14 +418,14 @@ public class FileClient extends Client implements FileClientInterface {
 			//sometimes we need to consume an extra message or 2
 			//super SUPER hacky, sorry
 			while(!resp.getMessage().equals("OK-FILE") && !resp.getMessage().equals("FAIL")){
-				System.out.println("Loop file: " + resp.getMessage());
+				// System.out.println("Loop file: " + resp.getMessage());
 				resp = (Envelope)input.readObject();
 			}
 			if(resp.getMessage().equals("OK-FILE")){
 				Integer val = (Integer)resp.getObjContents().get(0);
 				return val.intValue();
 			}else{
-				System.out.println(resp.getMessage());
+				// System.out.println(resp.getMessage());
 				return -1;
 			}
 		}catch(Exception e){
