@@ -5,7 +5,7 @@ import javax.crypto.*;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import java.util.*;
 import java.io.*;
-import javax.crypto.spec.SecretKeySpec;
+import javax.crypto.spec.*;
 import java.util.ArrayList;
 import java.util.List;
 import org.bouncycastle.crypto.digests.SHA256Digest;
@@ -16,6 +16,8 @@ public class CryptoHelper{
 
     private static Cipher rsaCipher = null;
     private static Cipher aesCipher = null;
+    private final static byte[] iv = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
+    private static final IvParameterSpec ivSpec = new IvParameterSpec(iv);
 
 
     public CryptoHelper(){
@@ -25,7 +27,7 @@ public class CryptoHelper{
             try{
                 //TODO: figure out why these lines are so damn slow
                 rsaCipher = Cipher.getInstance("RSA/ECB/PKCS1Padding", "BC");
-                aesCipher = Cipher.getInstance("AES", "BC");
+                aesCipher = Cipher.getInstance("AES/CBC/PKCS7Padding", "BC");
             }catch(Exception ex){
                 System.out.println("RSA constructor error: " + ex);
             }
@@ -107,11 +109,12 @@ public class CryptoHelper{
     public byte[] encryptAES(String input, Key key){
         byte[] out = null;
         try{
-            aesCipher.init(Cipher.ENCRYPT_MODE, key);
+            aesCipher.init(Cipher.ENCRYPT_MODE, key, ivSpec);
             out = aesCipher.doFinal(input.getBytes());
         }
         catch(Exception e){
             System.out.println("Error encrypting aes: " + e);
+            e.printStackTrace();
         }
         return out;
     }
@@ -119,11 +122,12 @@ public class CryptoHelper{
     public byte[] encryptAES(byte[] input, Key key){
         byte[] out = null;
         try{
-            aesCipher.init(Cipher.ENCRYPT_MODE, key);
+            aesCipher.init(Cipher.ENCRYPT_MODE, key, ivSpec);
             out = aesCipher.doFinal(input);
         }
         catch(Exception e){
             System.out.println("Error encrypting aes: " + e);
+            e.printStackTrace();
         }
         return out;
     }
@@ -131,11 +135,12 @@ public class CryptoHelper{
     public String decryptAES(byte[] ciphertext, Key key){
         String out = null;
         try{
-            aesCipher.init(Cipher.DECRYPT_MODE, key);
+            aesCipher.init(Cipher.DECRYPT_MODE, key, ivSpec);
             out = new String(aesCipher.doFinal(ciphertext));
         }
         catch(Exception e){
             System.out.println("Error decrypting aes: " + e);
+            e.printStackTrace();
         }
         return out;
     }
@@ -143,11 +148,12 @@ public class CryptoHelper{
     public byte[] decryptAESBytes(byte[] ciphertext, Key key){
         byte[] out = null;
         try{
-            aesCipher.init(Cipher.DECRYPT_MODE, key);
+            aesCipher.init(Cipher.DECRYPT_MODE, key, ivSpec);
             out = aesCipher.doFinal(ciphertext);
         }
         catch(Exception e){
             System.out.println("Error decrypting aes: " + e);
+            e.printStackTrace();
         }
         return out;
     }

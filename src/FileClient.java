@@ -83,6 +83,7 @@ public class FileClient extends Client implements FileClientInterface {
 	public byte[] getPubKey(){
 		Envelope env = new Envelope("PUBKEY");
 		try{
+			//don't touch this....I know it's not right, but it breaks when you add getHash
 			output.writeObject(env);
 			env = (Envelope)input.readObject();
 			if(env.getMessage().equals("OK")){
@@ -142,6 +143,8 @@ public class FileClient extends Client implements FileClientInterface {
 	}
 
 	public boolean download(String sourceFile, String destFile, TokenTuple tokTuple, Key groupKey) {
+		byte[] encodedKey = Base64.encodeBase64(groupKey.getEncoded());
+		System.out.println(new String(encodedKey));
 		if (sourceFile.charAt(0)=='/') {
 			sourceFile = sourceFile.substring(1);
 		}
@@ -168,16 +171,20 @@ public class FileClient extends Client implements FileClientInterface {
 				}
 				while(env.getMessage().compareTo("CHUNK")==0) {
 					try{
-						String asdf = crypto.decryptAES((byte [])env.getObjContents().get(0), aesKey);
+						//TODO this is where the decryption happens
+						// byte[] decodeBase64 = Base64.decodeBase64((byte [])env.getObjContents().get(0));
+						byte[] val = (byte [])env.getObjContents().get(0);
+						byte[] buffer = crypto.decryptAESBytes(val, groupKey);
+						byte[] byteN = crypto.decryptAESBytes((byte [])env.getObjContents().get(1), aesKey);
+						int n = Integer.parseInt(new String(byteN));
 
-						byte[] tra = asdf.getBytes();
-						//decrypt file with groupKey
-						byte[] out = crypto.decryptAESBytes(tra, groupKey);
+						// System.out.println("encbuf: " + new String(decodeBase64));
+						System.out.println("N: " + n);
+						System.out.println("buf: " + new String(buffer));
 
-						String inasdf = crypto.decryptAES((byte [])env.getObjContents().get(1), aesKey);
-						Integer temp = Integer.parseInt(inasdf);
+						// byte[] decrypted = crypto.decryptAESBytes(buffer, groupKey);
 
-						fos.write(out, 0, temp);
+						fos.write(buffer, 0, n);
 
 						// System.out.printf(".");
 						env = new Envelope("DOWNLOADF"); //Success
@@ -190,7 +197,7 @@ public class FileClient extends Client implements FileClientInterface {
 							return false;
 						}
 					}catch(Exception e){
-						System.out.println(e);
+						e.printStackTrace();
 					}
 				}
 				fos.close();
@@ -201,18 +208,22 @@ public class FileClient extends Client implements FileClientInterface {
 					output.reset();
 					output.writeObject(env);
 					crypto.getHash(integrityKey, env, output);
+					if(!crypto.verify(integrityKey, env, input)){
+						System.out.println("Message was modified, aborting");
+						return false;
+					}
 				}else{
 					System.out.printf("Error reading file %s (%s)\n", sourceFile, env.getMessage());
 					file.delete();
 					return false;
 				}
 			}else{
-				System.out.printf("Error couldn't create file %s\n", destFile);
+				System.out.printf("Error file already exists %s\n", destFile);
 				return false;
 			}
 
 		} catch (IOException e1) {
-			System.out.printf("Error couldn't create file %s\n", destFile);
+			System.out.printf("Error couldn't create file1 %s\n", destFile);
 			return false;
 		}
 		catch (ClassNotFoundException e1) {
@@ -221,39 +232,9 @@ public class FileClient extends Client implements FileClientInterface {
 		return true;
 	}
 
-	@SuppressWarnings("unchecked")
-	public List<String> listFiles(TokenTuple tokTuple) {
-		 try{
-			 Envelope message = null, e = null;
-			 //Tell the server to return the member list
-			 message = new Envelope("LFILES");
-			 //TODO add hash
-			 message.addObject(crypto.encryptAES(tokTuple.tok.toString(), aesKey)); //Add requester's token
-			 message.addObject(crypto.encryptAES(tokTuple.hashedToken, aesKey));//Add the signed token hash
-			 output.reset();
-			 output.writeObject(message);
-			 crypto.getHash(integrityKey, message, output);
-			 e = (Envelope)input.readObject();
-			 if(!crypto.verify(integrityKey, e, input)){
-				System.out.println("Message was modified, aborting");
-			}
-			else{
-				//If server indicates success, return the member list
-				if(e.getMessage().equals("OK")){
-					String rec = crypto.decryptAES((byte [])e.getObjContents().get(0), aesKey);
-					List<String> ret = crypto.extractList(e, 0, aesKey);
-					return ret; //This cast creates compiler warnings. Sorry.
-				 }
-			}
-			return null;
-		 }catch(Exception ex){
-			System.err.println("Error in listFiles: " + ex.getMessage());
-			ex.printStackTrace(System.err);
-			return null;
-		}
-	}
-
 	public boolean upload(String sourceFile, String destFile, String group, TokenTuple tokTuple, Key groupKey, int keyVer) {
+		byte[] encodedKey = Base64.encodeBase64(groupKey.getEncoded());
+		System.out.println(new String(encodedKey));
 		if(key == null && this.isConnected()){
 			byteFKey = confidentialityKey.toByteArray();
 			key = new SecretKeySpec(byteFKey, "AES");
@@ -308,13 +289,15 @@ public class FileClient extends Client implements FileClientInterface {
 						System.out.println("Read error");
 						return false;
 					}
+					//TODO this is where the encryption happens
 					byte[] ciphertext = crypto.encryptAES(buf, groupKey);
+					// byte[] ciphertextBase64 = Base64.encodeBase64(ciphertext);
+
 					message.addObject(ciphertext);
 					message.addObject(new Integer(n));
 					output.reset();
 					output.writeObject(message);
 					crypto.getHash(integrityKey, message, output);
-
 					env = (Envelope)input.readObject();
 					if(!crypto.verify(integrityKey, env, input)){
 						System.out.println("Message was modified, aborting");
@@ -329,7 +312,6 @@ public class FileClient extends Client implements FileClientInterface {
 				output.reset();
 				output.writeObject(message);
 				crypto.getHash(integrityKey, message, output);
-
 				env = (Envelope)input.readObject();
 				if(!crypto.verify(integrityKey, env, input)){
 					System.out.println("Message was modified, aborting");
@@ -357,22 +339,54 @@ public class FileClient extends Client implements FileClientInterface {
 		 return true;
 	}
 
-	public String getGroup(String name){
-		try{
-			Envelope message = null, resp = null;
-
+	@SuppressWarnings("unchecked")
+	public List<String> listFiles(TokenTuple tokTuple) {
+		 try{
+			 Envelope message = null, e = null;
 			 //Tell the server to return the member list
-			 message = new Envelope("GETGROUPFROMFILE");
-			 message.addObject(name);
+			 message = new Envelope("LFILES");
+			 message.addObject(crypto.encryptAES(tokTuple.tok.toString(), aesKey)); //Add requester's token
+			 message.addObject(crypto.encryptAES(tokTuple.hashedToken, aesKey));//Add the signed token hash
 			 output.reset();
 			 output.writeObject(message);
 			 crypto.getHash(integrityKey, message, output);
-			 resp = (Envelope)input.readObject();
-			 if(!crypto.verify(integrityKey, resp, input)){
+			 e = (Envelope)input.readObject();
+			 if(!crypto.verify(integrityKey, e, input)){
 				System.out.println("Message was modified, aborting");
-				return "";
 			}
-			if(resp.getMessage().equals("OK")){
+			else{
+				//If server indicates success, return the member list
+				if(e.getMessage().equals("OK")){
+					String rec = crypto.decryptAES((byte [])e.getObjContents().get(0), aesKey);
+					List<String> ret = crypto.extractList(e, 0, aesKey);
+					return ret; //This cast creates compiler warnings. Sorry.
+				 }
+			}
+			return null;
+		 }catch(Exception ex){
+			System.err.println("Error in listFiles: " + ex.getMessage());
+			ex.printStackTrace(System.err);
+			return null;
+		}
+	}
+
+	public String getGroup(String fileName){
+		try{
+			Envelope message = null, resp = null;
+
+			//Tell the server to return the member list
+			message = new Envelope("GETGROUPFROMFILE");
+			message.addObject(fileName);
+			output.reset();
+			output.writeObject(message);
+			resp = (Envelope)input.readObject();
+			//sometimes we need to consume an extra message or 2
+			//super SUPER hacky, sorry
+			while(!resp.getMessage().equals("OK-GROUP") && !resp.getMessage().equals("FAIL")){
+				System.out.println("Loop group: " + resp.getMessage());
+				resp = (Envelope)input.readObject();
+			}
+			if(resp.getMessage().equals("OK-GROUP")){
 				return (String)resp.getObjContents().get(0);
 			}else{
 				return "";
@@ -386,19 +400,22 @@ public class FileClient extends Client implements FileClientInterface {
 	public int getKeyVer(String name){
 		try{
 			Envelope message = null, resp = null;
-			 //Tell the server to return the member list
-			 message = new Envelope("GETKEYVERFROMFILE");
-			 message.addObject(name);
-			 output.reset();
-			 output.writeObject(message);
-			 crypto.getHash(integrityKey, message, output);
-			 resp = (Envelope)input.readObject();
-			 if(!crypto.verify(integrityKey, resp, input)){
-				System.out.println("Message was modified, aborting");
-				return -1;
+			//Tell the server to return the member list
+			message = new Envelope("GETKEYVERFROMFILE");
+			message.addObject(name);
+			output.reset();
+			output.writeObject(message);
+			resp = (Envelope)input.readObject();
+
+			//sometimes we need to consume an extra message or 2
+			//super SUPER hacky, sorry
+			while(!resp.getMessage().equals("OK-FILE") && !resp.getMessage().equals("FAIL")){
+				System.out.println("Loop file: " + resp.getMessage());
+				resp = (Envelope)input.readObject();
 			}
-			if(resp.getMessage().equals("OK")){
-				return ((Integer)resp.getObjContents().get(0)).intValue();
+			if(resp.getMessage().equals("OK-FILE")){
+				Integer val = (Integer)resp.getObjContents().get(0);
+				return val.intValue();
 			}else{
 				System.out.println(resp.getMessage());
 				return -1;

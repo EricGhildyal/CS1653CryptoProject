@@ -61,7 +61,7 @@ import java.util.*;
 				return f.getGroup();
 			}
 		}
-		return "";
+		return null;
 	}
 
 	public synchronized int findKeyVersion(String name){

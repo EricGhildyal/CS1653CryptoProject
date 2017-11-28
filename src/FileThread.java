@@ -120,9 +120,6 @@ public class FileThread extends Thread
 				//Message Structure: {}
 				else if(message.getMessage().equals("PUBKEY")){
 					Key pubKey = my_fs.keyRing.getKey("rsa_pub");
-					if(!crypto.verify(integrityKey, message, input)){
-						response = new Envelope("FAIL-MESSAGEMODIFIED");
-					}
 					if(pubKey != null){
 						response = new Envelope("OK");
 						byte[] pubKeyByte = crypto.encryptAES(pubKey.getEncoded(), aesKey);
@@ -138,35 +135,33 @@ public class FileThread extends Thread
 				else if(message.getMessage().equals("GETGROUPFROMFILE")){
 					String name = (String)message.getObjContents().get(0);
 					String groupName = my_fs.fileList.findGroup(name);
-					if(!crypto.verify(integrityKey, message, input)){
-						response = new Envelope("FAIL-MESSAGEMODIFIED");
-					}
-					if(!groupName.equals("")){
-						response = new Envelope("OK");
+					if(groupName != null){
+						response = new Envelope("OK-GROUP");
+						System.out.println("OK grp: " + groupName);
 						response.addObject(groupName);
 					}else{
+						System.out.println("GETGROUP FAILED...........");
 						response = new Envelope("FAIL");
 					}
 					output.reset();
 					output.writeObject(response);
-					crypto.getHash(integrityKey, response, output);
+					// crypto.getHash(integrityKey, response, output);
 				}
 				//RETURN GROUP THAT A FILE BELONGS TO
 				else if(message.getMessage().equals("GETKEYVERFROMFILE")){
 					String name = (String)message.getObjContents().get(0);
 					int version = my_fs.fileList.findKeyVersion(name);
-					if(!crypto.verify(integrityKey, message, input)){
-						response = new Envelope("FAIL-MESSAGEMODIFIED");
-					}
 					if(version > -1){
-						response = new Envelope("OK");
+						response = new Envelope("OK-FILE");
+						System.out.println("OK ver: " + version);
 						response.addObject(new Integer(version));
 					}else{
-						response = new Envelope("FAIL-NOVERSION");
+						System.out.println("GETVERSION FAILED...........");
+						response = new Envelope("FAIL");
 					}
 					output.reset();
 					output.writeObject(response);
-					crypto.getHash(integrityKey, response, output);
+					// crypto.getHash(integrityKey, response, output);
 				}
 				//LIST ALL THE FILES THE REQUESTING USER IS ALLOWED TO SEE
 				//Message Structure: {stringifiedToken, tokenSignature}
@@ -269,7 +264,6 @@ public class FileThread extends Thread
 
 				//UNRECOGNIZED REQUEST
 				else{
-					System.out.println(message.getMessage());
 					response = new Envelope("FAIL-UNRECOGNIZED"); //Server does not understand client request
 					output.reset();
 					output.writeObject(response);
@@ -308,8 +302,8 @@ public class FileThread extends Thread
 			}
 			else if (!yourToken.getGroups().contains(group)) {
 				System.out.printf("Error: user missing valid token for group %s\n", group);
-				System.out.print(yourToken.getGroups());
-				response = new Envelope("FAIL-UNAUTHORIZED"); //Success
+				// System.out.print(yourToken.getGroups());
+				response = new Envelope("FAIL-UNAUTHORIZED");
 			}
 			else  {
 				File file = new File("shared_files/"+remotePath.replace('/', '_'));
@@ -347,8 +341,6 @@ public class FileThread extends Thread
 						output.writeObject(response);
 						crypto.getHash(integrityKey, response, output);
 						int ver = ((Integer)message.getObjContents().get(0)).intValue();
-						//TODO GET RID OF!
-						System.out.println("file thread ver: " +ver);
 						FileServer.fileList.addFile(yourToken.getSubject(), group, remotePath, ver);
 					}
 					else {
@@ -400,7 +392,7 @@ public class FileThread extends Thread
 
 	//TODO probably should clean this up
 	private Envelope downloadFile(Envelope message, String remotePath, Key aesKey, int version, String groupName){
-		Envelope response = new Envelope("OK-dl");
+		Envelope response = new Envelope("OK");
 		try{
 			File f = new File("shared_files/_"+remotePath.replace('/', '_'));
 			if (!f.exists()) {
@@ -423,10 +415,10 @@ public class FileThread extends Thread
 					} else if(n < 0) {
 						System.out.println("Read error");
 					}
-					String toEnc = new String(buf, "UTF-8");
-					byte [] buffer = crypto.encryptAES(toEnc, aesKey);
+					// String toEnc = new String(buf, "UTF-8");
+					// byte [] buffer = toEnc;
 					byte [] byteN = crypto.encryptAES((new Integer(n)).toString(), aesKey);
-					message.addObject(buffer);
+					message.addObject(buf);
 					message.addObject(byteN);
 					output.reset();
 					output.writeObject(message);
@@ -461,9 +453,8 @@ public class FileThread extends Thread
 					System.out.printf("Upload failed: %s\n", message.getMessage());
 				}
 			}
-		}
-		catch(Exception e1){
-			System.err.println("Error: " + e1.getMessage());
+		}catch(Exception e1){
+			System.err.println("Error: " + e1);
 			e1.printStackTrace();
 			response = new Envelope("ERROR" + e1.getMessage());
 		}
