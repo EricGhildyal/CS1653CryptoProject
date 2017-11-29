@@ -13,9 +13,9 @@ import java.util.*;
 		list = new ArrayList<ShareFile>();
 	}
 	
-	public synchronized void addFile(String owner, String group, String path)
+	public synchronized void addFile(String owner, String group, String path, int keyVersion)
 	{
-		ShareFile newFile = new ShareFile(owner, group, path);
+		ShareFile newFile = new ShareFile(owner, group, path, keyVersion);
 		list.add(newFile);
 	}
 	
@@ -52,5 +52,25 @@ import java.util.*;
 			}
 		}
 		return null;
+	}
+
+	public synchronized String findGroup(String name){
+		name = "/" + name;
+		for(ShareFile f : list){
+			if(f.getPath().equals(name)){
+				return f.getGroup();
+			}
+		}
+		return null;
+	}
+
+	public synchronized int findKeyVersion(String name){
+		name = "/" + name;
+		for(ShareFile f : list){
+			if(f.getPath().equals(name)){
+				return f.getKeyVersion();
+			}
+		}
+		return -1;
 	}
 }	

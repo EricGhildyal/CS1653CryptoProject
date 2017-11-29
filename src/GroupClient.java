@@ -1,11 +1,10 @@
 /* Implements the GroupClient Interface */
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Arrays;
+import java.util.*;
 import javax.crypto.spec.SecretKeySpec;
-import java.util.ArrayList;
 import java.security.*;
+import java.security.spec.*;
+import java.math.BigInteger;
 
 public class GroupClient extends Client implements GroupClientInterface {
 	private byte [] byteFKey;
@@ -87,7 +86,6 @@ public class GroupClient extends Client implements GroupClientInterface {
 			e.printStackTrace(System.err);
 			return null;
 		}
-
 	 }
 
 	 public TokenTuple getFSToken(String username, String password, String targetRSAPub){
@@ -235,17 +233,14 @@ public class GroupClient extends Client implements GroupClientInterface {
 				else{
 					msgReceived++;
 					//If server indicates success, return true
-					if(response.getMessage().equals("OK"))
-					{
+					if(response.getMessage().equals("OK")){
 						output.reset();
 						return true;
 					}
 				}
-
 				return false;
 			}
-			catch(Exception e)
-			{
+			catch(Exception e){
 				System.err.println("Error: " + e.getMessage());
 				e.printStackTrace(System.err);
 				return false;
@@ -466,21 +461,95 @@ public class GroupClient extends Client implements GroupClientInterface {
 				else{
 					msgReceived++;
 					//If server indicates success, return true
-					if(response.getMessage().equals("OK"))
-					{
+					if(response.getMessage().equals("OK")){
 						output.reset();
 						return true;
 					}
 				}
-
 				return false;
-			}
-			catch(Exception e)
-			{
+			}catch(Exception e){
 				System.err.println("Error: " + e.getMessage());
 				e.printStackTrace(System.err);
 				return false;
 			}
 	 }
 
+	 public int getGroupKeyVer(String name){
+		try{
+			Envelope message = null, response = null;
+			message = new Envelope("GETKEYVER");
+			message.addObject(crypto.encryptAES(name, aesKey)); //Add user name string
+			output.reset();
+			message = crypto.addMessageNumber(message, msgSent);
+			output.writeObject(message);
+			msgSent++;
+			crypto.getHash(integrityKey, message, output);
+
+			response = (Envelope)input.readObject();
+			if(!crypto.verify(integrityKey, response, input)){
+				System.out.println("Message was modified, aborting");
+				return -1;
+			}else if((int)response.getObjContents().get(0) != msgReceived){
+				System.out.println("Wrong message received, aborting");
+				return -1;
+			}else{
+				msgReceived++;
+				response = crypto.removeMessageNumber(response);
+				//If server indicates success, return true
+				if(response.getMessage().equals("OK")){
+					//turn byte[] into int
+					String val = crypto.decryptAES((byte[]) response.getObjContents().get(0), aesKey);
+					return Integer.parseInt(val);
+				}
+			}
+			return -1;
+		}
+		catch(Exception e){
+			System.err.println("Error: " + e.getMessage());
+			e.printStackTrace(System.err);
+			return -1;
+		}
+	 }
+
+	 public Key getGroupKey(String groupName, int version){
+		try{
+			Envelope message = null, response = null;
+			message = new Envelope("GETKEYFROMVER");
+			message.addObject(crypto.encryptAES(groupName, aesKey));
+			message.addObject(crypto.encryptAES(Integer.toString(version), aesKey));
+			output.reset();
+			message = crypto.addMessageNumber(message, msgSent);
+			output.writeObject(message);
+			msgSent++;
+			crypto.getHash(integrityKey, message, output);
+
+			response = (Envelope)input.readObject();
+			if(!crypto.verify(integrityKey, response, input)){
+				System.out.println("Message was modified, aborting");
+				return null;
+			}else if((int)response.getObjContents().get(0) != msgReceived){
+				System.out.println("Wrong message received, aborting");
+				return null;
+			}else{
+				msgReceived++;
+				response = crypto.removeMessageNumber(response);
+				//If server indicates success, return true
+				if(response.getMessage().equals("OK")){
+					byte[] keyBytes = crypto.decryptAESBytes((byte[])response.getObjContents().get(0), aesKey);
+					Key groupKey = null;
+					try {
+						groupKey = (Key)new SecretKeySpec(keyBytes, "AES");
+					} catch (Exception e) {
+						e.printStackTrace();					
+					}
+					return groupKey;
+				}
+			}
+		}catch(Exception e){
+			System.err.println("Error: " + e.getMessage());
+			e.printStackTrace(System.err);
+			return null;
+		}
+		return null;
+	 }
 }

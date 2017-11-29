@@ -1,9 +1,10 @@
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Scanner;
-import java.lang.Integer;
+import java.util.*;
 import javax.crypto.*;
 import javax.crypto.spec.SecretKeySpec;
+import org.apache.commons.codec.binary.Base64;
+
+import java.io.File;
+import java.security.*;
 
 
 public class RunClient {
@@ -50,7 +51,7 @@ public class RunClient {
 			return;
 		}
 
-		fileServPubRSA = fcli.getPubKey();
+		fileServPubRSA = Base64.encodeBase64String(fcli.getPubKeyBytes());
 		if(fileServPubRSA == null){
 			System.err.println("Failed to get fileservers public key!");
 		}
@@ -179,7 +180,7 @@ public class RunClient {
 
 				case 9: //Upload File
 					if(gcli.groupTokTuple != null){
-						uploadFile(input, gcli.fileTokTuple, fcli);
+						uploadFile(input, gcli.fileTokTuple, fcli, gcli);
 						System.out.println("");
 					}
 					else
@@ -188,7 +189,7 @@ public class RunClient {
 
 				case 10: //Download File
 					if(gcli.groupTokTuple != null){
-						downloadFile(input, gcli.fileTokTuple, fcli);
+						downloadFile(input, gcli.fileTokTuple, fcli, gcli);
 						System.out.println("");
 					}
 					else
@@ -408,7 +409,7 @@ public class RunClient {
 		return true;
 	}
 
-	public static boolean uploadFile(Scanner input, TokenTuple groupTokTuple, FileClient fcli) {
+	public static boolean uploadFile(Scanner input, TokenTuple groupTokTuple, FileClient fcli, GroupClient gcli) {
 		System.out.println("Please enter the source file name: ");
 		String sourceFile = input.nextLine();
 		while(sourceFile.isEmpty()) {
@@ -434,10 +435,23 @@ public class RunClient {
 			if(gName.equals("break"))
 				return false;
 		}
-		return fcli.upload(sourceFile, destFile, gName, groupTokTuple);
+
+		// get current key versoion for a group
+		int keyVer = gcli.getGroupKeyVer(gName);
+		if(keyVer == -1){
+			System.out.println("There was a problem getting the key version");
+			return false;
+		}
+		// get the actual key for that group and version
+		Key groupKey = gcli.getGroupKey(gName, keyVer);
+		if(groupKey == null){
+			System.out.println("There was a problem getting the group key");
+			return false;
+		}
+		return fcli.upload(sourceFile, destFile, gName, groupTokTuple, groupKey, keyVer);
 	}
 
-	public static boolean downloadFile(Scanner input, TokenTuple groupTokTuple, FileClient fcli) {
+	public static boolean downloadFile(Scanner input, TokenTuple groupTokTuple, FileClient fcli, GroupClient gcli) {
 		System.out.println("Please enter the source file name: ");
 		String sourceFile = input.nextLine();
 		while(sourceFile.isEmpty()) {
@@ -453,9 +467,40 @@ public class RunClient {
 			destFile = input.nextLine();
 			if(destFile.equalsIgnoreCase("break"))
 				return false;
-
 		}
-		return fcli.download(sourceFile, destFile, groupTokTuple);
+		try{
+			// do basic check for file
+			File file = new File(destFile);
+			if(file.exists()){
+				System.out.println("File already exists!");
+				return false;
+			}
+			// get name of group from filename
+			String groupName = "[NONE]";
+			groupName = fcli.getGroup(sourceFile);
+			if(groupName.equals("")){
+				System.out.println("There was a problem getting the group");
+				return false;
+			}
+			System.out.println("name: " + groupName);
+			// get file version number from filename
+			int version = fcli.getKeyVer(sourceFile);
+			if(version == -1){
+				System.out.println("There was a problem getting the key version");
+				return false;
+			}
+			System.out.println("ver: " + version);
+			// get the actual key for that group and version
+			Key groupKey = gcli.getGroupKey(groupName, version);
+			if(groupKey == null){
+				System.out.println("There was a problem getting the group key");
+				return false;
+			}
+			return fcli.download(sourceFile, destFile, groupTokTuple, groupKey);
+		}catch(Exception e){
+			e.printStackTrace();
+		}
+		return  false;
 	}
 
 	public static boolean deleteFile(Scanner input, TokenTuple groupTokTuple, FileClient fcli) {
