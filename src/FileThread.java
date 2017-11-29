@@ -152,13 +152,12 @@ public class FileThread extends Thread
 					//RETURN THIS SERVERS PUBLIC RSA KEY
 					//Message Structure: {}
 					else if(message.getMessage().equals("PUBKEY")){
-						//x`System.out.println(my_fs);
-						//System.out.println(my_fs.keyRing);
-						//System.out.println(my_fs.keyRing.getKey("rsa_pub"));
+						System.out.println("GOT TO PUB KEY");
 						Key pubKey = my_fs.keyRing.getKey("rsa_pub");
+						System.out.println(Base64.encodeBase64String(pubKey.getEncoded()));
 						if(pubKey != null){
 							response = new Envelope("OK");
-							byte[] pubKeyByte = crypto.encryptAES(Base64.encodeBase64String(pubKey.getEncoded()), aesKey);
+							byte[] pubKeyByte = crypto.encryptAES(pubKey.getEncoded(), aesKey);
 							response.addObject(pubKeyByte);
 						}
 						else{
@@ -166,21 +165,24 @@ public class FileThread extends Thread
 						}
 						response = crypto.addMessageNumber(response, msgSent);
 						output.reset();
-						
 						output.writeObject(response);
 						msgSent++;
 						crypto.getHash(integrityKey, response, output);
 					}
 					//RETURN GROUP THAT A FILE BELONGS TO
 					else if(message.getMessage().equals("GETGROUPFROMFILE")){
-						String name = (String)message.getObjContents().get(0);
-						String groupName = my_fs.fileList.findGroup(name);
-						if(groupName != null){
-							response = new Envelope("OK-GROUP");
-							response.addObject(groupName);
-						}else{
-							// System.out.println("GETGROUP FAILED...........");
+						if(crypto.verify(integrityKey, message, input)){
 							response = new Envelope("FAIL");
+						}else{
+							String name = (String)message.getObjContents().get(0);
+							String groupName = my_fs.fileList.findGroup(name);
+							if(groupName != null){
+								response = new Envelope("OK-GROUP");
+								response.addObject(groupName);
+							}else{
+								// System.out.println("GETGROUP FAILED...........");
+								response = new Envelope("FAIL");
+							}
 						}
 						response = crypto.addMessageNumber(response, msgSent);
 						msgSent++;
@@ -190,14 +192,18 @@ public class FileThread extends Thread
 					}
 					//RETURN KEY VERSION THAT A FILE BELONGS TO
 					else if(message.getMessage().equals("GETKEYVERFROMFILE")){
-						String name = (String)message.getObjContents().get(0);
-						int version = my_fs.fileList.findKeyVersion(name);
-						if(version > -1){
-							response = new Envelope("OK-FILE");
-							response.addObject(new Integer(version));
-						}else{
-							// System.out.println("GETVERSION FAILED...........");
+						if(crypto.verify(integrityKey, message, input)){
 							response = new Envelope("FAIL");
+						}else{
+							String name = (String)message.getObjContents().get(0);
+							int version = my_fs.fileList.findKeyVersion(name);
+							if(version > -1){
+								response = new Envelope("OK-FILE");
+								response.addObject(new Integer(version));
+							}else{
+								// System.out.println("GETVERSION FAILED...........");
+								response = new Envelope("FAIL");
+							}
 						}
 						response = crypto.addMessageNumber(response, msgSent);
 						msgSent++;
@@ -208,15 +214,25 @@ public class FileThread extends Thread
 					//LIST ALL THE FILES THE REQUESTING USER IS ALLOWED TO SEE
 					//Message Structure: {stringifiedToken, tokenSignature}
 					else if(message.getMessage().equals("LFILES")){
-						TokenTuple tokenTuple  = new TokenTuple(crypto.extractToken(message, 0, aesKey), crypto.decryptAESBytes((byte[])message.getObjContents().get(1), aesKey));
-						ArrayList<String> list = listFiles(tokenTuple, aesKey);
-						if(!crypto.checkTarget(tokenTuple.tok.getTarget(), my_fs.keyRing.getKey("rsa_pub"))){
-							response = new Envelope("FAIL-INCORRECTTARGET");
-						}else{
-							response = new Envelope("OK");
-							byte [] ls = crypto.encryptAES(list.toString(), aesKey);
-							response.addObject(ls);
+						if(crypto.verify(integrityKey,message, input)){
+							response = new Envelope("FAIL");
 						}
+						else{
+							TokenTuple tokenTuple  = new TokenTuple(crypto.extractToken(message, 0, aesKey), crypto.decryptAESBytes((byte[])message.getObjContents().get(1), aesKey));
+							ArrayList<String> list = listFiles(tokenTuple, aesKey);
+							if(!crypto.checkTarget(tokenTuple.tok.getTarget(), my_fs.keyRing.getKey("rsa_pub"))){
+								response = new Envelope("FAIL-INCORRECTTARGET");
+							}else{
+								response = new Envelope("OK");
+								byte [] ls = crypto.encryptAES(list.toString(), aesKey);
+								response.addObject(ls);
+							}
+						}
+						response = crypto.addMessageNumber(response, msgSent);
+						msgSent++;
+						output.reset();
+						output.writeObject(response);
+						crypto.getHash(integrityKey, response, output);
 					}
 					//UPLOAD A FILE
 					//Message Structure: {destinationFile, groupName, stringifiedToken, tokenSignature}
@@ -225,7 +241,7 @@ public class FileThread extends Thread
 						if(message.getObjContents().size() < 4){
 							response = new Envelope("FAIL-BADCONTENTS");
 						}
-						else if(!crypto.verify(integrityKey, message, input)){
+						else if(!crypto.verify(integrityKey, noNum, input)){
 							response = new Envelope("FAIL-MESSAGEMODIFIED");
 						}
 						else{
@@ -264,7 +280,7 @@ public class FileThread extends Thread
 						else if (sf == null) {
 							response = new Envelope("ERROR_FILEMISSING");
 						}
-						else if(!crypto.verify(integrityKey, message, input)){
+						else if(!crypto.verify(integrityKey, noNum, input)){
 							response = new Envelope("FAIL");
 						}
 						else if (!tokenTuple.tok.getGroups().contains(sf.getGroup())){
@@ -272,11 +288,18 @@ public class FileThread extends Thread
 						}else{
 							response = downloadFile(message, remotePath, aesKey, version, group);
 						}
+						message = crypto.addMessageNumber(message, msgSent);
+						output.reset();
+						output.writeObject(message);
+						msgSent++;
+						crypto.getHash(integrityKey, message, output);
 					}
 					//DELETE A FILE
 					//Message Structure: {fileToDelete, stringifiedToken, tokenSignature}
 					else if (message.getMessage().compareTo("DELETEF")==0) {
-
+						if(!crypto.verify(integrityKey, noNum, input)){
+							response = new Envelope("FAIL");
+						}else{
 						String remotePath = crypto.decryptAES((byte [])message.getObjContents().get(0), aesKey);
 						TokenTuple requestTokTup  = new TokenTuple(crypto.extractToken(message, 1, aesKey), crypto.decryptAESBytes((byte[])message.getObjContents().get(2), aesKey));
 
@@ -287,6 +310,7 @@ public class FileThread extends Thread
 							//TODO check token
 							message = deleteFile(remotePath, requestTokTup.tok);
 						}
+					}
 						message = crypto.addMessageNumber(message, msgSent);
 						output.reset();
 						output.writeObject(message);
@@ -378,6 +402,7 @@ public class FileThread extends Thread
 					msgReceived++;
 					message = crypto.removeMessageNumber(message);
 					while (message.getMessage().compareTo("CHUNK")==0) {
+						System.out.println("SENDING CHUNK");
 						fos.write((byte[])message.getObjContents().get(0), 0, (Integer)message.getObjContents().get(1));
 						response = new Envelope("READY"); //Success
 						response = crypto.addMessageNumber(response, msgSent);
@@ -404,7 +429,10 @@ public class FileThread extends Thread
 						response = new Envelope("OK"); //Success
 						output.reset();
 						//TODO ADD MESSAGE NUMBER
+						response = crypto.addMessageNumber(response, msgSent);
+						output.reset();
 						output.writeObject(response);
+						msgSent++;
 						crypto.getHash(integrityKey, response, output);
 						int ver = ((Integer)message.getObjContents().get(0)).intValue();
 						FileServer.fileList.addFile(yourToken.getSubject(), group, remotePath, ver);

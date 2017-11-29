@@ -479,8 +479,8 @@ public class GroupClient extends Client implements GroupClientInterface {
 			Envelope message = null, response = null;
 			message = new Envelope("GETKEYVER");
 			message.addObject(crypto.encryptAES(name, aesKey)); //Add user name string
-			output.reset();
 			message = crypto.addMessageNumber(message, msgSent);
+			output.reset();
 			output.writeObject(message);
 			msgSent++;
 			crypto.getHash(integrityKey, message, output);
@@ -517,8 +517,8 @@ public class GroupClient extends Client implements GroupClientInterface {
 			message = new Envelope("GETKEYFROMVER");
 			message.addObject(crypto.encryptAES(groupName, aesKey));
 			message.addObject(crypto.encryptAES(Integer.toString(version), aesKey));
-			output.reset();
 			message = crypto.addMessageNumber(message, msgSent);
+			output.reset();
 			output.writeObject(message);
 			msgSent++;
 			crypto.getHash(integrityKey, message, output);

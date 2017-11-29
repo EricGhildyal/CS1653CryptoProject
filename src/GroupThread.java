@@ -181,11 +181,13 @@ public class GroupThread extends Thread
 								byte [] tok = new byte[32];
 								byte [] uniqueStringHash;
 								if(yourToken != null){
-									//TODO uniqueStringHash needs to be encrypted with GroupServers private key
+									//encrypt string hash with server private key
 									uniqueStringHash = crypto.sha256Bytes(yourToken.toUniqueString());
 									tok = crypto.encryptAES(yourToken.toString(), aesKey);
+									Key privKey = my_gs.keyRing.getKey("rsa_priv");
+									byte[] encUniqueStringHash = crypto.encryptRSA(uniqueStringHash, privKey);
 									response.addObject(tok);
-									response.addObject(uniqueStringHash);
+									response.addObject(encUniqueStringHash);
 								}else{
 									response.addObject(yourToken);
 								}
@@ -200,7 +202,7 @@ public class GroupThread extends Thread
 							String username = crypto.decryptAES((byte[])message.getObjContents().get(0), aesKey); //Get the username
 							String password = crypto.decryptAES((byte[])message.getObjContents().get(1), aesKey); //Get the password
 							String target = crypto.decryptAES((byte[])message.getObjContents().get(2), aesKey);
-							if(!crypto.verify(integrityKey, message, input)){
+							if(!crypto.verify(integrityKey, noNum, input)){
 								response = new Envelope("FAIL-1");
 								response.addObject(null);
 								output.reset();
@@ -229,7 +231,7 @@ public class GroupThread extends Thread
 									Key privKey = my_gs.keyRing.getKey("rsa_priv");
 									byte[] encUniqueStringHash = crypto.encryptRSA(uniqueStringHash, privKey);
 									response.addObject(tok);
-									response.addObject(uniqueStringHash);
+									response.addObject(encUniqueStringHash);
 									}else{
 										response.addObject(yourToken);
 									}
@@ -289,7 +291,7 @@ public class GroupThread extends Thread
 						//returns group version key
 						}else if(message.getMessage().equals("GETKEYVER")){
 							String groupName = crypto.decryptAES((byte[])message.getObjContents().get(0), aesKey).toString(); //Get the groupname
-							if(!crypto.verify(integrityKey, message, input)){
+							if(!crypto.verify(integrityKey, noNum, input)){
 								response = new Envelope("FAIL-1");
 								output.reset();
 								response = crypto.addMessageNumber(response, msgSent);
@@ -320,7 +322,7 @@ public class GroupThread extends Thread
 						}else if(message.getMessage().equals("GETKEYFROMVER")){
 							String groupName = crypto.decryptAES((byte[])message.getObjContents().get(0), aesKey).toString(); //Get the groupname
 							int version = Integer.parseInt(crypto.decryptAES((byte[])message.getObjContents().get(1), aesKey).toString());
-							if(!crypto.verify(integrityKey, message, input)){
+							if(!crypto.verify(integrityKey, noNum, input)){
 								response = new Envelope("FAIL-1");
 								output.reset();
 								response = crypto.addMessageNumber(response, msgSent);
@@ -355,7 +357,7 @@ public class GroupThread extends Thread
 							if(message.getObjContents().size() < 2){
 								response = new Envelope("FAIL-7");
 							}else{
-								if(!crypto.verify(integrityKey, message, input)){
+								if(!crypto.verify(integrityKey, noNum, input)){
 									response = new Envelope("FAIL-8");
 									/*response.addObject(null);
 									output.reset();
@@ -394,7 +396,7 @@ public class GroupThread extends Thread
 							if(message.getObjContents().size() < 3){ //check for valid number of args
 								response = new Envelope("FAIL-11");
 							}else{
-								if(!crypto.verify(integrityKey, message, input)){
+								if(!crypto.verify(integrityKey, noNum, input)){
 									response = new Envelope("FAIL-12");
 									/*response.addObject(null);
 									output.reset();
@@ -471,7 +473,7 @@ public class GroupThread extends Thread
 						if(message.getObjContents().size() < 3){ //check for valid number of args
 							response = new Envelope("FAIL-17");
 						}else{
-							if(!crypto.verify(integrityKey, message, input)){
+							if(!crypto.verify(integrityKey, noNum, input)){
 								response = new Envelope("FAIL-18");
 								/*response.addObject(null);
 								output.reset();
@@ -558,7 +560,7 @@ public class GroupThread extends Thread
 						if(message.getObjContents().size() < 4){ //check for valid number of args
 							response = new Envelope("FAIL-24");
 						}else{
-							if(!crypto.verify(integrityKey, message, input)){
+							if(!crypto.verify(integrityKey, noNum, input)){
 							response = new Envelope("FAIL-25");
 							/*response.addObject(null);
 							output.reset();

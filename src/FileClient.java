@@ -38,6 +38,7 @@ public class FileClient extends Client implements FileClientInterface {
 		}
 		//get key from file server
 		byte[] keyBytes  = getPubKeyBytes();
+		
 		//turn byte[] key into Key object
 		X509EncodedKeySpec ks = new X509EncodedKeySpec(keyBytes);
 		KeyFactory kf = null;
@@ -135,9 +136,11 @@ public class FileClient extends Client implements FileClientInterface {
 		Envelope env = new Envelope("PUBKEY");
 		try{
 			env = crypto.addMessageNumber(env, msgSent);
+			output.reset();
 			output.writeObject(env);
 			msgSent++;
 			env = (Envelope)input.readObject();
+			System.out.println("pubkey msg: " + env.getMessage());
 			if(env.getMessage().equals("OK")){
 				if(!crypto.verify(integrityKey, env, input)){
 					System.out.println("Message was modified, aborting");
@@ -149,6 +152,7 @@ public class FileClient extends Client implements FileClientInterface {
 				msgReceived++;
 				env = crypto.removeMessageNumber(env);
 				return crypto.decryptAESBytes((byte[])env.getObjContents().get(0), aesKey);
+				// return Base64.decodeBase64(tmp);
 			}
 			return null;
 		}catch(Exception e){
@@ -161,6 +165,7 @@ public class FileClient extends Client implements FileClientInterface {
 		Envelope env = new Envelope("PUBKEY");
 		try{
 			env = crypto.addMessageNumber(env, msgSent);
+			output.reset();
 			output.writeObject(env);
 			msgSent++;
 			env = (Envelope)input.readObject();
@@ -187,7 +192,6 @@ public class FileClient extends Client implements FileClientInterface {
 	}
 
 	public boolean download(String sourceFile, String destFile, TokenTuple tokTuple, Key groupKey) {
-		
 		if (sourceFile.charAt(0)=='/') {
 			sourceFile = sourceFile.substring(1);
 		}
@@ -276,6 +280,7 @@ public class FileClient extends Client implements FileClientInterface {
 						System.out.println("Writing dec to file now");
 						FileUtils.writeByteArrayToFile(file, fileDec);
 						System.out.println("Done writing dec to file");
+						//woops
 					}catch(Exception e){
 						System.out.println("There was a problem encrypting your file");
 						e.printStackTrace();
@@ -289,7 +294,7 @@ public class FileClient extends Client implements FileClientInterface {
 				System.out.printf("Error file already exists %s\n", destFile);
 				return false;
 			}
-
+			
 		} catch (IOException e1) {
 			System.out.printf("Error couldn't create file1 %s\n", destFile);
 			return false;
@@ -297,12 +302,12 @@ public class FileClient extends Client implements FileClientInterface {
 		catch (ClassNotFoundException e1) {
 			e1.printStackTrace();
 		}
-			return true;
+		
+		return true;
 	}
 
 	@SuppressWarnings("unchecked")
 	public List<String> listFiles(TokenTuple tokTuple) {
-
 		 try
 		 {
 			 Envelope message = null, e = null;
@@ -331,6 +336,7 @@ public class FileClient extends Client implements FileClientInterface {
 				//If server indicates success, return the member list
 				if(e.getMessage().equals("OK"))
 				{
+					//sSystem.out.println((Integer)e.getObjContents().get(0));
 					String rec = crypto.decryptAES((byte [])e.getObjContents().get(0), aesKey);
 					List<String> ret = crypto.extractList(e, 0, aesKey);
 					return (List<String>)ret; //This cast creates compiler warnings. Sorry.
@@ -349,6 +355,7 @@ public class FileClient extends Client implements FileClientInterface {
 	}
 
 	public boolean upload(String sourceFile, String destFile, String group, TokenTuple tokTuple, Key groupKey, int keyVer) {
+		System.out.println("UPLOAD");
 		if(key == null && this.isConnected()){
 			byteFKey = confidentialityKey.toByteArray();
 			key = new SecretKeySpec(byteFKey, "AES");
@@ -371,7 +378,7 @@ public class FileClient extends Client implements FileClientInterface {
 			System.out.println("There was a problem encrypting your file");
 			e.printStackTrace();
 		}
-
+		System.out.println("FILE ENC");
 		try{
 			Envelope message = null, env = null;
 
@@ -386,7 +393,7 @@ public class FileClient extends Client implements FileClientInterface {
 			 output.writeObject(message);
 			 msgSent++;
 			 crypto.getHash(integrityKey, message, output);
-
+			 System.out.println("UPLOADF sent");
 			@SuppressWarnings("resource")
 			FileInputStream fis = new FileInputStream(sourceEnc.getAbsolutePath());
 
@@ -401,7 +408,7 @@ public class FileClient extends Client implements FileClientInterface {
 			}
 			msgReceived++;
 			env = crypto.addMessageNumber(env, msgSent);
-
+			
 			 //If server indicates success, return the member list
 			if(env.getMessage().equals("READY")){
 				System.out.printf("\nMeta data upload successful");
@@ -410,6 +417,7 @@ public class FileClient extends Client implements FileClientInterface {
 				 return false;
 			 }
 			 do {
+				 //System.out.println("THING");
 				 byte[] buf = new byte[4096];
 				 	if (env.getMessage().compareTo("READY")!=0) {
 				 		System.out.printf("Server error: %s\n", env.getMessage());
@@ -432,7 +440,9 @@ public class FileClient extends Client implements FileClientInterface {
 					msgSent++;
 					crypto.getHash(integrityKey, message, output);
 
+					System.out.println(env.getMessage());
 					env = (Envelope)input.readObject();
+					System.out.println(env.getMessage());
 					if(!crypto.verify(integrityKey, env, input)){
 						System.out.println("Message was modified, aborting");
 						return false;
@@ -443,17 +453,6 @@ public class FileClient extends Client implements FileClientInterface {
 					}
 					msgReceived++;
 					env = crypto.removeMessageNumber(env);
-
-					message.addObject(buf);
-					message.addObject(new Integer(n));
-					output.reset();
-					output.writeObject(message);
-					crypto.getHash(integrityKey, message, output);
-					env = (Envelope)input.readObject();
-					if(!crypto.verify(integrityKey, env, input)){
-						System.out.println("Message was modified, aborting");
-						return false;
-					}
 			 }while (fis.available()>0);
 
 			 //If server indicates success, return the member list
@@ -507,23 +506,26 @@ public class FileClient extends Client implements FileClientInterface {
 			output.reset();
 			message = crypto.addMessageNumber(message, msgSent);
 			output.writeObject(message);
+			crypto.getHash(integrityKey, message, output);
 			msgSent++;
 			resp = (Envelope)input.readObject();
 
 			if((int)resp.getObjContents().get(0) != msgReceived){
 				System.out.println("Wrong message received, aborting");
 				return "";
-			}else{
-				msgReceived++;
-				resp = crypto.removeMessageNumber(resp);
 			}
+			msgReceived++;
+			resp = crypto.removeMessageNumber(resp);
+			
 
 			//sometimes we need to consume an extra message or 2
 			//super SUPER hacky, sorry
 			while(!resp.getMessage().equals("OK-GROUP") && !resp.getMessage().equals("FAIL")){
-				// System.out.println("Loop group: " + resp.getMessage());
+				System.out.println("Loop group: " + resp.getMessage());
 				resp = (Envelope)input.readObject();
 			}
+			//msgReceived++;
+			// resp = crypto.removeMessageNumber(resp);
 			if(resp.getMessage().equals("OK-GROUP")){
 				return (String)resp.getObjContents().get(0);
 			}else{
@@ -545,6 +547,7 @@ public class FileClient extends Client implements FileClientInterface {
 			message = crypto.addMessageNumber(message, msgSent);
 			output.writeObject(message);
 			msgSent++;
+			crypto.getHash(integrityKey, message, output);
 			resp = (Envelope)input.readObject();
 
 			if((int)resp.getObjContents().get(0) != msgReceived){
@@ -558,7 +561,7 @@ public class FileClient extends Client implements FileClientInterface {
 			//sometimes we need to consume an extra message or 2
 			//super SUPER hacky, sorry
 			while(!resp.getMessage().equals("OK-FILE") && !resp.getMessage().equals("FAIL")){
-				// System.out.println("Loop file: " + resp.getMessage());
+				System.out.println("Loop file: " + resp.getMessage());
 				resp = (Envelope)input.readObject();
 			}
 			if(resp.getMessage().equals("OK-FILE")){
