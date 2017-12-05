@@ -15,7 +15,7 @@ public class GroupServer extends Server {
 
 	public static final int SERVER_PORT = 8765;
 	public UserList userList;
-  	public ArrayList<Group> groupList = new ArrayList<Group>();
+  public ArrayList<Group> groupList = new ArrayList<Group>();
 	public String fname = "";
 	public static KeyRing keyRing;
 	public CryptoHelper crypto;
@@ -38,6 +38,7 @@ public class GroupServer extends Server {
 
 	public GroupServer(int _port, String dbFileName) {
 		super(_port, "ALPHA");
+		crypto = new CryptoHelper();
 		fname = dbFileName;
 		keyRing = new KeyRing("GroupServer");
 		if(keyRing.exists()){
@@ -48,10 +49,9 @@ public class GroupServer extends Server {
 			keyRing.addKey("rsa_priv", kp.getPrivate());
 			keyRing.addKey("rsa_pub", kp.getPublic());
 			System.out.println("GS_PUBKEY: " + Base64.encodeBase64String(kp.getPublic().getEncoded()));
-			
+
 		}
 	}
-
 	public void start() {
 		// Overwrote server.start() because if no user file exists, initial admin account needs to be created
 		String userFile = "UserList.bin";

@@ -38,7 +38,7 @@ public class FileClient extends Client implements FileClientInterface {
 		}
 		//get key from file server
 		byte[] keyBytes  = getPubKeyBytes();
-		
+
 		//turn byte[] key into Key object
 		X509EncodedKeySpec ks = new X509EncodedKeySpec(keyBytes);
 		KeyFactory kf = null;
@@ -51,7 +51,7 @@ public class FileClient extends Client implements FileClientInterface {
 		try {
 			remotePubKey = (Key)kf.generatePublic(ks);
 		} catch (Exception e) {
-			e.printStackTrace();					
+			e.printStackTrace();
 		}
 		Scanner reader = new Scanner(System.in);
 		//check if we have a key for this server
@@ -79,7 +79,7 @@ public class FileClient extends Client implements FileClientInterface {
 				System.out.println("\n WARNING!! Saved key and remote key didn't match! WARNING!! \n");
 				return false;
 			}
-			
+
 		}
 	}
 
@@ -169,10 +169,10 @@ public class FileClient extends Client implements FileClientInterface {
 			output.writeObject(env);
 			msgSent++;
 			env = (Envelope)input.readObject();
-			
+
 			if(env.getMessage().equals("OK")){
 				if(!crypto.verify(integrityKey, env, input)){
-					
+
 					System.out.println("Message was modified, aborting");
 					return null;
 				}
@@ -203,7 +203,7 @@ public class FileClient extends Client implements FileClientInterface {
 				FileOutputStream fos = new FileOutputStream(file);
 
 				Envelope env = new Envelope("DOWNLOADF"); //Success
-				byte [] srcF = crypto.encryptAES(sourceFile, aesKey);
+					byte [] srcF = Base64.encodeBase64(crypto.encryptAES(sourceFile, groupKey));
 				byte [] tok = crypto.encryptAES(tokTuple.tok.toString(), aesKey);
 				env.addObject(srcF);
 				env.addObject(tok);
@@ -294,7 +294,7 @@ public class FileClient extends Client implements FileClientInterface {
 				System.out.printf("Error file already exists %s\n", destFile);
 				return false;
 			}
-			
+
 		} catch (IOException e1) {
 			System.out.printf("Error couldn't create file1 %s\n", destFile);
 			return false;
@@ -302,8 +302,12 @@ public class FileClient extends Client implements FileClientInterface {
 		catch (ClassNotFoundException e1) {
 			e1.printStackTrace();
 		}
-		
+
 		return true;
+	}
+
+	public ArrayList<String> getGroupList(){
+
 	}
 
 	@SuppressWarnings("unchecked")
@@ -342,9 +346,7 @@ public class FileClient extends Client implements FileClientInterface {
 					return (List<String>)ret; //This cast creates compiler warnings. Sorry.
 				 }
 			}
-
 			 return null;
-
 		 }
 		 catch(Exception ex)
 			{
@@ -355,7 +357,6 @@ public class FileClient extends Client implements FileClientInterface {
 	}
 
 	public boolean upload(String sourceFile, String destFile, String group, TokenTuple tokTuple, Key groupKey, int keyVer) {
-		System.out.println("UPLOAD");
 		if(key == null && this.isConnected()){
 			byteFKey = confidentialityKey.toByteArray();
 			key = new SecretKeySpec(byteFKey, "AES");
@@ -364,7 +365,7 @@ public class FileClient extends Client implements FileClientInterface {
 		 destFile = "/" + destFile;
 		}
 		byte [] srcFile = crypto.encryptAES(sourceFile, aesKey);
-		byte [] destinationFile = crypto.encryptAES(destFile, aesKey);
+		byte [] destinationFile = Base64.encodeBase64(crypto.encryptAES(destFile, groupKey));
 		byte [] grpName = crypto.encryptAES(group, aesKey);
 		byte [] tok = crypto.encryptAES(tokTuple.tok.toString(), aesKey);
 
@@ -378,7 +379,6 @@ public class FileClient extends Client implements FileClientInterface {
 			System.out.println("There was a problem encrypting your file");
 			e.printStackTrace();
 		}
-		System.out.println("FILE ENC");
 		try{
 			Envelope message = null, env = null;
 
@@ -393,7 +393,6 @@ public class FileClient extends Client implements FileClientInterface {
 			 output.writeObject(message);
 			 msgSent++;
 			 crypto.getHash(integrityKey, message, output);
-			 System.out.println("UPLOADF sent");
 			@SuppressWarnings("resource")
 			FileInputStream fis = new FileInputStream(sourceEnc.getAbsolutePath());
 
@@ -408,7 +407,7 @@ public class FileClient extends Client implements FileClientInterface {
 			}
 			msgReceived++;
 			env = crypto.addMessageNumber(env, msgSent);
-			
+
 			 //If server indicates success, return the member list
 			if(env.getMessage().equals("READY")){
 				System.out.printf("\nMeta data upload successful");
@@ -516,7 +515,7 @@ public class FileClient extends Client implements FileClientInterface {
 			}
 			msgReceived++;
 			resp = crypto.removeMessageNumber(resp);
-			
+
 
 			//sometimes we need to consume an extra message or 2
 			//super SUPER hacky, sorry

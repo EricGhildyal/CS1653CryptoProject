@@ -396,6 +396,14 @@ public class RunClient {
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
+
+		HashMap<String, HashMap<Integer, Key>> godMap;
+		ArrayList<String> groupList = gcli.getGroupList();
+		for(Group g: groupList){
+			HashMap<Integer,Key> groupKeyMap = gcli.getGroupKeyMap(g.getName());
+
+		}
+
 		List<String> files = fcli.listFiles(groupTokTuple);
 		if(files == null) {
 			System.out.println("Something went wrong with your request!");

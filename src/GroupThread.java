@@ -140,10 +140,10 @@ public class GroupThread extends Thread
 				}else{
 					Envelope noNum = message;
 					message = crypto.removeMessageNumber(message);
-					
+
 					msgReceived++;
 					System.out.println("Request received: " + message.getMessage());
-					
+
 					Envelope response;
 					//busy wait until DH is done
 					if(!dhDone){
@@ -198,6 +198,14 @@ public class GroupThread extends Thread
 								crypto.getHash(integrityKey, response, output);
 							}
 						}
+					}else if(message.getMessage().equals("GETGROUPLIST")){
+
+						response = new Envelope("OK");
+						response.addObject(crypto.encryptAES(groupList, aesKey));
+						response = crypto.addMessageNumber(response, msgSent);
+						output.reset();
+						output.writeObject();
+						msgSent++;
 					}else if(message.getMessage().equals("GETFS")){
 							String username = crypto.decryptAES((byte[])message.getObjContents().get(0), aesKey); //Get the username
 							String password = crypto.decryptAES((byte[])message.getObjContents().get(1), aesKey); //Get the password
@@ -247,7 +255,7 @@ public class GroupThread extends Thread
 								response = new Envelope("FAIL-4");
 							}else{
 								if(!crypto.verify(integrityKey, noNum, input)){
-									response = new Envelope("FAIL-5");									
+									response = new Envelope("FAIL-5");
 								}else{
 									response = new Envelope("FAIL-6");
 									if(message.getObjContents().get(0) != null){
@@ -272,7 +280,7 @@ public class GroupThread extends Thread
 							output.reset();
 							output.writeObject(response);
 							msgSent++;
-							crypto.getHash(integrityKey, response, output);					
+							crypto.getHash(integrityKey, response, output);
 						//returns groupserver pub RSA key
 						}else if(message.getMessage().equals("PUBLICKEY")){
 							Key pubKey = my_gs.keyRing.getKey("rsa_pub");

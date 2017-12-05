@@ -52,7 +52,7 @@ public class GroupClient extends Client implements GroupClientInterface {
 				System.out.println("Wrong message received, aborting");
 				return null;
 			}
-			
+
 			else{
 				msgReceived++;
 				response = crypto.removeMessageNumber(response);
@@ -88,6 +88,30 @@ public class GroupClient extends Client implements GroupClientInterface {
 		}
 	 }
 
+	 public ArrayList<Group> getGroupList(){
+		 try{
+			 Envelope message = new Envelope("GETGROUPLIST");
+			 crypto.addMessageNumber(message, msgSent);
+			 output.reset();
+			 output.writeObject(message);
+			 msgSent++;
+
+			 Envelope response = (Envelope)input.readObject();
+			 if((int)response.getObjContents().get(0) != msgReceived){
+ 				System.out.println("Wrong message received, aborting");
+ 				return null;
+ 			}
+ 			else{
+ 				msgReceived++;
+ 				response = crypto.removeMessageNumber(response);
+				return (ArrayList<Group>)response.getObjContents().get(0);
+			}
+		 }catch(Exception e){
+			 e.printStackTrace();
+		 }
+		 return null;
+	 }
+
 	 public TokenTuple getFSToken(String username, String password, String targetRSAPub){
  		try{
  			UserToken token = null;
@@ -113,7 +137,7 @@ public class GroupClient extends Client implements GroupClientInterface {
 			//Get the response from the server
 			response = (Envelope)input.readObject();
 			//msgReceived++;
-			
+
 			if(!crypto.verify(integrityKey, response, input)){
 				System.out.println("Message was modified, aborting");
 			}
@@ -176,8 +200,8 @@ public class GroupClient extends Client implements GroupClientInterface {
 				crypto.getHash(integrityKey, message, output);
 
 				response = (Envelope)input.readObject();
-				
-				
+
+
 				if(!crypto.verify(integrityKey, response, input)){
 					System.out.println("Message was modified, aborting");
 				}
@@ -222,7 +246,7 @@ public class GroupClient extends Client implements GroupClientInterface {
 				msgSent++;
 				crypto.getHash(integrityKey, message, output);
 				response = (Envelope)input.readObject();
-				
+
 				if(!crypto.verify(integrityKey, response, input)){
 					System.out.println("Message was modified, aborting");
 				}
@@ -540,7 +564,7 @@ public class GroupClient extends Client implements GroupClientInterface {
 					try {
 						groupKey = (Key)new SecretKeySpec(keyBytes, "AES");
 					} catch (Exception e) {
-						e.printStackTrace();					
+						e.printStackTrace();
 					}
 					return groupKey;
 				}

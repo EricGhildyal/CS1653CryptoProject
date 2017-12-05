@@ -245,7 +245,8 @@ public class FileThread extends Thread
 							response = new Envelope("FAIL-MESSAGEMODIFIED");
 						}
 						else{
-							String path = crypto.decryptAES(((byte [])message.getObjContents().get(0)), aesKey);
+							//String path = crypto.decryptAES(((byte [])message.getObjContents().get(0)), aesKey);
+							String path = new String((byte [])message.getObjContents().get(0));
 							String grp = crypto.decryptAES(((byte [])message.getObjContents().get(1)), aesKey);
 							TokenTuple tokenTuple  = new TokenTuple(crypto.extractToken(message, 2, aesKey), crypto.decryptAESBytes((byte[])message.getObjContents().get(3), aesKey));
 							if(path == null) {
@@ -397,7 +398,7 @@ public class FileThread extends Thread
 					response = new Envelope("FAIL-OUT OF ORDER");
 					//break;
 				}
-				
+
 				else{
 					msgReceived++;
 					message = crypto.removeMessageNumber(message);
@@ -423,7 +424,7 @@ public class FileThread extends Thread
 						message = crypto.removeMessageNumber(message);
 						msgReceived++;
 					}
-					
+
 					if(message.getMessage().compareTo("EOF")==0) {
 						System.out.printf("Transfer successful file %s\n", remotePath);
 						response = new Envelope("OK"); //Success
@@ -435,7 +436,7 @@ public class FileThread extends Thread
 						msgSent++;
 						crypto.getHash(integrityKey, response, output);
 						int ver = ((Integer)message.getObjContents().get(0)).intValue();
-						FileServer.fileList.addFile(yourToken.getSubject(), group, remotePath, ver);
+						FileServer.fileList.addFile(yourToken.getSubject(), group, remotePath, ver, path.substring(1, path.length()));
 					}
 					else {
 						System.out.printf("Error reading file %s from client\n", remotePath);
