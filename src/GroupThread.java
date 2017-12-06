@@ -198,14 +198,6 @@ public class GroupThread extends Thread
 								crypto.getHash(integrityKey, response, output);
 							}
 						}
-					}else if(message.getMessage().equals("GETGROUPLIST")){
-
-						response = new Envelope("OK");
-						response.addObject(crypto.encryptAES(groupList, aesKey));
-						response = crypto.addMessageNumber(response, msgSent);
-						output.reset();
-						output.writeObject();
-						msgSent++;
 					}else if(message.getMessage().equals("GETFS")){
 							String username = crypto.decryptAES((byte[])message.getObjContents().get(0), aesKey); //Get the username
 							String password = crypto.decryptAES((byte[])message.getObjContents().get(1), aesKey); //Get the password

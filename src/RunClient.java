@@ -10,6 +10,8 @@ import java.security.*;
 public class RunClient {
 	//group server ip/group server port/fileserver ip/file server port
 
+	private static CryptoHelper crypto = new CryptoHelper();
+
 	public static void main(String[] args) {
 		SecretKeySpec fileServKey;
 		SecretKeySpec groupServKey;
@@ -171,7 +173,7 @@ public class RunClient {
 
 				case 8: //List Files
 					if(gcli.groupTokTuple != null){
-						if(!listFiles(gcli.fileTokTuple, fcli))
+						if(!listFiles(gcli.fileTokTuple, fcli, gcli))
 							System.out.println("List Files Failed\n");
 					}
 					else
@@ -390,18 +392,11 @@ public class RunClient {
 		return gcli.deleteUserFromGroup(username, gName, groupTokTuple);
 	}
 
-	public static boolean listFiles(TokenTuple groupTokTuple, FileClient fcli) {
+	public static boolean listFiles(TokenTuple groupTokTuple, FileClient fcli, GroupClient gcli) {
 		try {
 			Thread.sleep(1000); //sleep for one second to let server upload file
 		} catch (InterruptedException e) {
 			e.printStackTrace();
-		}
-
-		HashMap<String, HashMap<Integer, Key>> godMap;
-		ArrayList<String> groupList = gcli.getGroupList();
-		for(Group g: groupList){
-			HashMap<Integer,Key> groupKeyMap = gcli.getGroupKeyMap(g.getName());
-
 		}
 
 		List<String> files = fcli.listFiles(groupTokTuple);
@@ -444,7 +439,13 @@ public class RunClient {
 				return false;
 		}
 
-		// get current key versoion for a group
+		File file = new File(sourceFile);
+		if(!file.exists()){
+			System.out.println("File doesn't exist!");
+			return false;
+		}
+
+		// get current key version for a group
 		int keyVer = gcli.getGroupKeyVer(gName);
 		if(keyVer == -1){
 			System.out.println("There was a problem getting the key version");
@@ -490,14 +491,14 @@ public class RunClient {
 				System.out.println("There was a problem getting the group");
 				return false;
 			}
-			System.out.println("name: " + groupName);
+			// System.out.println("name: " + groupName);
 			// get file version number from filename
 			int version = fcli.getKeyVer(sourceFile);
 			if(version == -1){
 				System.out.println("There was a problem getting the key version");
 				return false;
 			}
-			System.out.println("ver: " + version);
+			// System.out.println("ver: " + version);
 			// get the actual key for that group and version
 			Key groupKey = gcli.getGroupKey(groupName, version);
 			if(groupKey == null){

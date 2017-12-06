@@ -55,20 +55,19 @@ import java.util.*;
 	}
 
 	public synchronized String findGroup(String name){
-		name = "/" + name;
+		name = '/' + name;
 		for(ShareFile f : list){
 			if(f.getName().equals(name)){
 				return f.getGroup();
 			}
 		}
-		System.out.println("null");
 		return null;
 	}
 
 	public synchronized int findKeyVersion(String name){
-		name = "/" + name;
+		name = '/' + name;
 		for(ShareFile f : list){
-			if(f.getPath().equals(name)){
+			if(f.getName().equals(name)){
 				return f.getKeyVersion();
 			}
 		}

@@ -203,7 +203,7 @@ public class FileClient extends Client implements FileClientInterface {
 				FileOutputStream fos = new FileOutputStream(file);
 
 				Envelope env = new Envelope("DOWNLOADF"); //Success
-					byte [] srcF = Base64.encodeBase64(crypto.encryptAES(sourceFile, groupKey));
+				byte [] srcF = Base64.encodeBase64(crypto.encryptAES(sourceFile, groupKey));
 				byte [] tok = crypto.encryptAES(tokTuple.tok.toString(), aesKey);
 				env.addObject(srcF);
 				env.addObject(tok);
@@ -275,12 +275,8 @@ public class FileClient extends Client implements FileClientInterface {
 					try{
 						byte[] fileBytesB64 = IOUtils.toByteArray(new FileInputStream(destFile));
 						byte[] fileBytes = Base64.decodeBase64(fileBytesB64);
-						System.out.println("dec now");
 						byte[] fileDec = crypto.decryptAESBytes(fileBytes, groupKey);
-						System.out.println("Writing dec to file now");
 						FileUtils.writeByteArrayToFile(file, fileDec);
-						System.out.println("Done writing dec to file");
-						//woops
 					}catch(Exception e){
 						System.out.println("There was a problem encrypting your file");
 						e.printStackTrace();
@@ -306,9 +302,6 @@ public class FileClient extends Client implements FileClientInterface {
 		return true;
 	}
 
-	public ArrayList<String> getGroupList(){
-
-	}
 
 	@SuppressWarnings("unchecked")
 	public List<String> listFiles(TokenTuple tokTuple) {
@@ -317,7 +310,6 @@ public class FileClient extends Client implements FileClientInterface {
 			 Envelope message = null, e = null;
 			 //Tell the server to return the member list
 			 message = new Envelope("LFILES");
-			 //TODO add hash
 			 message.addObject(crypto.encryptAES(tokTuple.tok.toString(), aesKey)); //Add requester's token
 			 message.addObject(crypto.encryptAES(tokTuple.hashedToken, aesKey));//Add the signed token hash
 			 message = crypto.addMessageNumber(message, msgSent);
@@ -340,7 +332,6 @@ public class FileClient extends Client implements FileClientInterface {
 				//If server indicates success, return the member list
 				if(e.getMessage().equals("OK"))
 				{
-					//sSystem.out.println((Integer)e.getObjContents().get(0));
 					String rec = crypto.decryptAES((byte [])e.getObjContents().get(0), aesKey);
 					List<String> ret = crypto.extractList(e, 0, aesKey);
 					return (List<String>)ret; //This cast creates compiler warnings. Sorry.
@@ -350,7 +341,6 @@ public class FileClient extends Client implements FileClientInterface {
 		 }
 		 catch(Exception ex)
 			{
-				System.err.println("Error in listFiles: " + ex.getMessage());
 				ex.printStackTrace(System.err);
 				return null;
 			}
@@ -368,7 +358,6 @@ public class FileClient extends Client implements FileClientInterface {
 		byte [] destinationFile = Base64.encodeBase64(crypto.encryptAES(destFile, groupKey));
 		byte [] grpName = crypto.encryptAES(group, aesKey);
 		byte [] tok = crypto.encryptAES(tokTuple.tok.toString(), aesKey);
-
 		File sourceEnc = new File(sourceFile + "_enc");
 		try{
 			byte[] fileBytes = IOUtils.toByteArray(new FileInputStream(sourceFile));
@@ -388,6 +377,7 @@ public class FileClient extends Client implements FileClientInterface {
 			 message.addObject(grpName);
 			 message.addObject(tok);
 			 message.addObject(crypto.encryptAES(tokTuple.hashedToken, aesKey));//Add the signed token hash
+			 message.addObject(destFile.getBytes()); //get original name
 			 message = crypto.addMessageNumber(message, msgSent);
 			 output.reset();
 			 output.writeObject(message);
@@ -520,7 +510,7 @@ public class FileClient extends Client implements FileClientInterface {
 			//sometimes we need to consume an extra message or 2
 			//super SUPER hacky, sorry
 			while(!resp.getMessage().equals("OK-GROUP") && !resp.getMessage().equals("FAIL")){
-				System.out.println("Loop group: " + resp.getMessage());
+				// System.out.println("Loop group: " + resp.getMessage());
 				resp = (Envelope)input.readObject();
 			}
 			//msgReceived++;

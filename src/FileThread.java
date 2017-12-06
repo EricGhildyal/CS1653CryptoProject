@@ -122,6 +122,9 @@ public class FileThread extends Thread
 					message = (Envelope)input.readObject();
 				}
 				System.out.println("Request received: " + message.getMessage());
+				if(message.getObjContents().get(0).getClass() == byte[].class){
+					System.out.println(new String((byte[])message.getObjContents().get(0)));
+				}
 				if((int)message.getObjContents().get(0) != msgReceived){
 					for(int i = 0; i < msgReceived; i ++){
 						try{
@@ -219,7 +222,7 @@ public class FileThread extends Thread
 						}
 						else{
 							TokenTuple tokenTuple  = new TokenTuple(crypto.extractToken(message, 0, aesKey), crypto.decryptAESBytes((byte[])message.getObjContents().get(1), aesKey));
-							ArrayList<String> list = listFiles(tokenTuple, aesKey);
+							List<String> list = listFiles(tokenTuple, aesKey);
 							if(!crypto.checkTarget(tokenTuple.tok.getTarget(), my_fs.keyRing.getKey("rsa_pub"))){
 								response = new Envelope("FAIL-INCORRECTTARGET");
 							}else{
@@ -249,6 +252,7 @@ public class FileThread extends Thread
 							String path = new String((byte [])message.getObjContents().get(0));
 							String grp = crypto.decryptAES(((byte [])message.getObjContents().get(1)), aesKey);
 							TokenTuple tokenTuple  = new TokenTuple(crypto.extractToken(message, 2, aesKey), crypto.decryptAESBytes((byte[])message.getObjContents().get(3), aesKey));
+							String name = new String((byte [])message.getObjContents().get(4));
 							if(path == null) {
 								response = new Envelope("FAIL-BADPATH");
 							}else if(grp == null) {
@@ -258,7 +262,7 @@ public class FileThread extends Thread
 							}else if(!crypto.checkTarget(tokenTuple.tok.getTarget(), my_fs.keyRing.getKey("rsa_pub"))){
 								response = new Envelope("FAIL-INCORRECTTARGET");
 							}else {
-								response = uploadFile(path, grp, tokenTuple.tok, message, aesKey);
+								response = uploadFile(path, grp, tokenTuple.tok, name, message, aesKey); //get rid of / in name
 							}
 							response = crypto.addMessageNumber(response, msgSent);
 							output.reset();
@@ -270,12 +274,13 @@ public class FileThread extends Thread
 					//DOWNLOAD A FILE
 					//Message Structure: {sourceFile, stringifiedToken, tokenSignature}
 					else if (message.getMessage().compareTo("DOWNLOADF")==0) {
-						String remotePath = crypto.decryptAES((byte [])message.getObjContents().get(0), aesKey);
+						String remotePath = new String((byte[])message.getObjContents().get(0));
 						TokenTuple tokenTuple  = new TokenTuple(crypto.extractToken(message, 1, aesKey), crypto.decryptAESBytes((byte[])message.getObjContents().get(2), aesKey));
 						ShareFile sf = FileServer.fileList.getFile("/"+remotePath);
-						int version = sf.getKeyVersion();
-						String group = sf.getGroup();
-						if(!crypto.checkTarget(tokenTuple.tok.getTarget(), my_fs.keyRing.getKey("rsa_pub"))){
+						if(sf == null){ //file not found
+							response = new Envelope("FAIL");
+						}
+						else if(!crypto.checkTarget(tokenTuple.tok.getTarget(), my_fs.keyRing.getKey("rsa_pub"))){
 							response = new Envelope("FAIL-INCORRECTTARGET");
 						}
 						else if (sf == null) {
@@ -287,6 +292,8 @@ public class FileThread extends Thread
 						else if (!tokenTuple.tok.getGroups().contains(sf.getGroup())){
 							response = new Envelope("ERROR_PERMISSION");
 						}else{
+							int version = sf.getKeyVersion();
+							String group = sf.getGroup();
 							response = downloadFile(message, remotePath, aesKey, version, group);
 						}
 						message = crypto.addMessageNumber(message, msgSent);
@@ -345,20 +352,21 @@ public class FileThread extends Thread
 		}
 	}
 
-	private ArrayList<String> listFiles(TokenTuple tokenTuple, Key aesKey){
-		ArrayList<String> list = new ArrayList<String>();
+	private List<String> listFiles(TokenTuple tokenTuple, Key aesKey){
+		List<String> list = new ArrayList<String>();
 		UserToken token = tokenTuple.tok;
 		List<String> groups = token.getGroups(); //list of current groups user is a member of
 		FileList tmp = FileServer.fileList; //list of files on the server
 		for(ShareFile f : tmp.getFiles()) {
 			String group = f.getGroup();
-			if(groups.contains(group)) //compare this file's group to our user group list
-				list.add(f.getPath());
+			if(groups.contains(group)){ //compare this file's group to our user group list
+				list.add(f.getName());
+			}
 		}
 		return list;
 	}
 
-	private Envelope uploadFile(String path, String grp, UserToken token, Envelope message, Key aesKey){
+	private Envelope uploadFile(String path, String grp, UserToken token, String name, Envelope message, Key aesKey){
 		Envelope response = new Envelope("FAIL");
 		String remotePath = path;
 		String group = grp;
@@ -436,7 +444,8 @@ public class FileThread extends Thread
 						msgSent++;
 						crypto.getHash(integrityKey, response, output);
 						int ver = ((Integer)message.getObjContents().get(0)).intValue();
-						FileServer.fileList.addFile(yourToken.getSubject(), group, remotePath, ver, path.substring(1, path.length()));
+						FileServer.fileList.addFile(yourToken.getSubject(), group, remotePath, ver, name);
+						System.out.println("Adding file named: " + name);
 					}
 					else {
 						System.out.printf("Error reading file %s from client\n", remotePath);

@@ -88,30 +88,6 @@ public class GroupClient extends Client implements GroupClientInterface {
 		}
 	 }
 
-	 public ArrayList<Group> getGroupList(){
-		 try{
-			 Envelope message = new Envelope("GETGROUPLIST");
-			 crypto.addMessageNumber(message, msgSent);
-			 output.reset();
-			 output.writeObject(message);
-			 msgSent++;
-
-			 Envelope response = (Envelope)input.readObject();
-			 if((int)response.getObjContents().get(0) != msgReceived){
- 				System.out.println("Wrong message received, aborting");
- 				return null;
- 			}
- 			else{
- 				msgReceived++;
- 				response = crypto.removeMessageNumber(response);
-				return (ArrayList<Group>)response.getObjContents().get(0);
-			}
-		 }catch(Exception e){
-			 e.printStackTrace();
-		 }
-		 return null;
-	 }
-
 	 public TokenTuple getFSToken(String username, String password, String targetRSAPub){
  		try{
  			UserToken token = null;

@@ -139,7 +139,6 @@ public class CryptoHelper{
             out = new String(aesCipher.doFinal(ciphertext));
         }
         catch(Exception e){
-            System.out.println("Error decrypting aes: " + e);
             e.printStackTrace();
         }
         return out;
@@ -152,7 +151,6 @@ public class CryptoHelper{
             out = aesCipher.doFinal(ciphertext);
         }
         catch(Exception e){
-            System.out.println("Error decrypting aes: " + e);
             e.printStackTrace();
         }
         return out;
@@ -182,7 +180,7 @@ public class CryptoHelper{
 				trial.add(trial.size(), spl[i]);
 		}
 		return trial;
-	}
+    }
 
     public String sha256(String s){
         SHA256Digest sha = new SHA256Digest();
