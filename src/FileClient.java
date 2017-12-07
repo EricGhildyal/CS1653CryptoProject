@@ -203,7 +203,7 @@ public class FileClient extends Client implements FileClientInterface {
 				FileOutputStream fos = new FileOutputStream(file);
 
 				Envelope env = new Envelope("DOWNLOADF"); //Success
-				byte [] srcF = Base64.encodeBase64(crypto.encryptAES(sourceFile, groupKey));
+				byte [] srcF = Base64.encodeBase64(crypto.encryptAES('/'+sourceFile, groupKey));
 				byte [] tok = crypto.encryptAES(tokTuple.tok.toString(), aesKey);
 				env.addObject(srcF);
 				env.addObject(tok);

@@ -46,10 +46,8 @@ import java.util.*;
 
 	public synchronized ShareFile getFile(String path)
 	{
-		System.out.println(path + "\n\n\n\n");
 		for (int i = 0; i < list.size(); i++) {
-			System.out.println(list.get(i).getPath());
-			if (list.get(i).getPath().compareTo(path)==0) {
+			if (list.get(i).getPath().equals(path)) {
 				return list.get(i);
 			}
 		}
