@@ -122,9 +122,12 @@ public class FileThread extends Thread
 					message = (Envelope)input.readObject();
 				}
 				System.out.println("Request received: " + message.getMessage());
-				if(message.getObjContents().get(0).getClass() == byte[].class){
-					System.out.println(new String((byte[])message.getObjContents().get(0)));
-				}
+				
+
+				
+					
+				
+				
 				if((int)message.getObjContents().get(0) != msgReceived){
 					for(int i = 0; i < msgReceived; i ++){
 						try{
@@ -276,15 +279,19 @@ public class FileThread extends Thread
 					else if (message.getMessage().compareTo("DOWNLOADF")==0) {
 						String remotePath = new String((byte[])message.getObjContents().get(0));
 						TokenTuple tokenTuple  = new TokenTuple(crypto.extractToken(message, 1, aesKey), crypto.decryptAESBytes((byte[])message.getObjContents().get(2), aesKey));
-						ShareFile sf = FileServer.fileList.getFile("/"+remotePath);
+						ShareFile sf = FileServer.fileList.getFile(remotePath);
+						//System.out.println(sf.getName());
 						if(sf == null){ //file not found
 							response = new Envelope("FAIL");
+							System.out.println("HERE");
 						}
 						else if(!crypto.checkTarget(tokenTuple.tok.getTarget(), my_fs.keyRing.getKey("rsa_pub"))){
 							response = new Envelope("FAIL-INCORRECTTARGET");
+							System.out.println("bruh");
 						}
 						else if (sf == null) {
 							response = new Envelope("ERROR_FILEMISSING");
+							System.out.println("temp");
 						}
 						else if(!crypto.verify(integrityKey, noNum, input)){
 							response = new Envelope("FAIL");
@@ -292,6 +299,7 @@ public class FileThread extends Thread
 						else if (!tokenTuple.tok.getGroups().contains(sf.getGroup())){
 							response = new Envelope("ERROR_PERMISSION");
 						}else{
+							System.out.println(",ade it");
 							int version = sf.getKeyVersion();
 							String group = sf.getGroup();
 							response = downloadFile(message, remotePath, aesKey, version, group);

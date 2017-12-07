@@ -210,6 +210,7 @@ public class FileClient extends Client implements FileClientInterface {
 				env.addObject(crypto.encryptAES(tokTuple.hashedToken, aesKey));//Add the signed token hash
 				env = crypto.addMessageNumber(env, msgSent);
 				output.reset();
+				//System.out.println((int)env.getObjContents().get(0));
 				output.writeObject(env);
 				msgSent++;
 				crypto.getHash(integrityKey, env, output);
@@ -396,7 +397,7 @@ public class FileClient extends Client implements FileClientInterface {
 				return false;
 			}
 			msgReceived++;
-			env = crypto.addMessageNumber(env, msgSent);
+			//env = crypto.addMessageNumber(env, msgSent);
 
 			 //If server indicates success, return the member list
 			if(env.getMessage().equals("READY")){
