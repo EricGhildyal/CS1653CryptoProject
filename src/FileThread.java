@@ -274,7 +274,7 @@ public class FileThread extends Thread
 						String remotePath = new String((byte[])message.getObjContents().get(0));
 						TokenTuple tokenTuple  = new TokenTuple(crypto.extractToken(message, 1, aesKey), crypto.decryptAESBytes((byte[])message.getObjContents().get(2), aesKey));
 						ShareFile sf = FileServer.fileList.getFile(remotePath);
-						if(sf == null){ //file not found
+						if(!crypto.verify(integrityKey, noNum, input)){
 							response = new Envelope("FAIL");
 						}
 						else if(!crypto.checkTarget(tokenTuple.tok.getTarget(), my_fs.keyRing.getKey("rsa_pub"))){
@@ -285,9 +285,6 @@ public class FileThread extends Thread
 							response = new Envelope("ERROR_FILEMISSING");
 							System.out.println("temp");
 						}
-						else if(!crypto.verify(integrityKey, noNum, input)){
-							response = new Envelope("FAIL");
-						}
 						else if (!tokenTuple.tok.getGroups().contains(sf.getGroup())){
 							response = new Envelope("ERROR_PERMISSION");
 						}else{
@@ -295,11 +292,12 @@ public class FileThread extends Thread
 							String group = sf.getGroup();
 							response = downloadFile(message, remotePath, aesKey, version, group);
 						}
-						message = crypto.addMessageNumber(message, msgSent);
+						System.out.println("SEDNING: " + response.getMessage());
+						response = crypto.addMessageNumber(message, msgSent);
 						output.reset();
-						output.writeObject(message);
+						output.writeObject(response);
 						msgSent++;
-						crypto.getHash(integrityKey, message, output);
+						crypto.getHash(integrityKey, response, output);
 					}
 					//DELETE A FILE
 					//Message Structure: {fileToDelete, stringifiedToken, tokenSignature}
