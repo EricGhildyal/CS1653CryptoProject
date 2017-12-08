@@ -30,6 +30,7 @@ E.g. Someone can attempt to create a file called “ConvesationWithRussia.txt”
 - To protect against this, we will use AES to encrypt the filenames with the same key that we use to encrypt the file in T6, and upload it as such.
 - For downloading, we will first request a list of the encrypted file names with the corresponding version numbers.
 - We will decrypt each name with the corresponding key, and once we find the file we want, we submit a request for that file using its encrypted name.
+
 **Arguments:** 
 	If the file exists in a group not the one you are a part of then it will no longer return a file already exists value. This would allow files to be named the same thing across multiple groups, but also prevent the file server from knowing filenames too.
 
